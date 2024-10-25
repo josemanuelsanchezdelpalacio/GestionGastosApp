@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.ReportGmailerrorred
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBarItem
@@ -37,8 +38,7 @@ class AuxViewModel: ViewModel() {
     }
 
     fun visibilidadPassword() {
-        _uiState.value =
-            _uiState.value.copy(visibilidadPasssword = !uiState.value.visibilidadPasssword)
+        _uiState.value = _uiState.value.copy(visibilidadPasssword = !uiState.value.visibilidadPasssword)
     }
 
     fun setScreenActual(screen: AppScreen) {
@@ -52,6 +52,15 @@ class AuxViewModel: ViewModel() {
             containerColor = naranjaOscuro,
             contentColor = blanco
         ) {
+            NavigationBarItem(
+                icon = { Icon(Icons.Filled.ReportGmailerrorred, "Graficos") },
+                label = { Text("Graficos") },
+                selected = uiState.value.screenActual == AppScreen.CalculadoraScreen,
+                onClick = {
+                    navController.navigate(AppScreen.GraficosScreen.route)
+                    setScreenActual(AppScreen.GraficosScreen)
+                }
+            )
             NavigationBarItem(
                 icon = { Icon(Icons.Filled.Home, "Inicio") },
                 label = { Text("Inicio") },

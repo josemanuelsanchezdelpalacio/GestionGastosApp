@@ -14,4 +14,5 @@ sealed class AppScreen(val route: String) {
     }
     object HistoryScreen : AppScreen("history_screen")
     object CalculadoraScreen : AppScreen("calculadora_screen")
+    object GraficosScreen : AppScreen("graficos_screen")
 }

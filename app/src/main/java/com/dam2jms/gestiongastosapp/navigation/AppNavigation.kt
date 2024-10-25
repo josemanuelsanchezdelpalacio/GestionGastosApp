@@ -14,6 +14,8 @@ import com.dam2jms.gestiongastosapp.models.AuxViewModel
 import com.dam2jms.gestiongastosapp.models.CalculadoraViewModel
 import com.dam2jms.gestiongastosapp.models.CurrencyViewModel
 import com.dam2jms.gestiongastosapp.models.EditTransactionViewModel
+import com.dam2jms.gestiongastosapp.screens.GraficosScreen
+import com.dam2jms.gestiongastosapp.models.GraficosViewModel
 import com.dam2jms.gestiongastosapp.models.HistoryViewModel
 import com.dam2jms.gestiongastosapp.models.HomeViewModel
 import com.dam2jms.gestiongastosapp.models.LoginViewModel
@@ -32,7 +34,6 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -113,6 +114,9 @@ fun AppNavigation() {
         }
         composable(AppScreen.HistoryScreen.route) {
             HistoryScreen(navController, auxViewModel = AuxViewModel(), mvvm = HistoryViewModel())
+        }
+        composable(AppScreen.GraficosScreen.route) {
+            GraficosScreen(navController, auxViewModel = AuxViewModel(), graficosViewModel = GraficosViewModel())
         }
     }
 }

@@ -6,47 +6,31 @@ import android.widget.Toast
 
 object Validaciones{
 
-    /**Valida el correo electronico para que tenga la estructura de un email valido*/
-    fun validarCorreo(context: Context, email: String): Boolean {
-        val patronEmail = Patterns.EMAIL_ADDRESS
-        return if(email.isNotEmpty() && patronEmail.matcher(email).matches()) {
-            true
-        }else{
-            Toast.makeText(context, "Ingrese un correo electronico valido", Toast.LENGTH_SHORT).show()
-            false
-        }
+    //validar que el correo tiene el formato correcto
+    fun validarEmail(email: String): Boolean {
+        val emailRegex = "[a-zA-Z0-9._-]+@[a-z]+\\.+[a-z]+".toRegex()
+        return email.isNotBlank() && emailRegex.matches(email)
     }
 
-    /**Valida la contraseña para que tenga como minimo 6 caracteres (el minimo para firebase)*/
-    fun validaContraseña(context: Context, password: String): Boolean {
-        return if(password.length >= 6){
-            true
-        }else{
+    //validar que la contraseña cumpla con las restrincciones de firebase
+    fun validarPassword(password: String): Boolean{
+        return password.length >= 6
+    }
+
+    fun validarCredenciales(email: String, password: String, context: Context): Boolean {
+
+        if(!Validaciones.validarEmail(email)){
+            Toast.makeText(context, "El correo no tiene un formato valido", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        if(!Validaciones.validarPassword(password)){
             Toast.makeText(context, "La contraseña debe tener al menos 6 caracteres", Toast.LENGTH_SHORT).show()
-            false
+            return false
         }
+        return true
     }
 
-    /** Metodo para validar la cantidad para la transaccion **/
-    fun validarCantidad(context: Context, amount: String): Boolean {
-        return if (amount.isNotEmpty() && amount.toDoubleOrNull() != null && amount.toDouble() > 0) {
-            true
-        } else {
-            Toast.makeText(context, "Ingrese una cantidad valida", Toast.LENGTH_SHORT).show()
-            false
-        }
-    }
-
-
-    /** Metodo para validar la descripcion de la transaccion **/
-    fun validarDescripcion(context: Context, description: String): Boolean {
-        return if (description.isNotEmpty()) {
-            true
-        } else {
-            Toast.makeText(context, "Ingrese una descripcion", Toast.LENGTH_SHORT).show()
-            false
-        }
-    }
 }
 
 

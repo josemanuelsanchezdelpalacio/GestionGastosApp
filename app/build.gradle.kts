@@ -97,6 +97,9 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:20.6.0")
 
     implementation("com.patrykandpatrick.vico:compose:1.6.5")
+
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
 }
 
 
