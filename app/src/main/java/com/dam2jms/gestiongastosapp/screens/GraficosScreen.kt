@@ -1,5 +1,6 @@
 package com.dam2jms.gestiongastosapp.screens
 
+import GraficosViewModel
 import ItemComponents.SelectorMoneda
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -23,14 +24,12 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.dam2jms.gestiongastosapp.components.BottomAppBarReutilizable
 import com.dam2jms.gestiongastosapp.components.GraficoBarras
-import com.dam2jms.gestiongastosapp.components.GraficoCircular
 import com.dam2jms.gestiongastosapp.components.GraficoCircularGastos
 import com.dam2jms.gestiongastosapp.components.GraficoCircularIngresos
 import com.dam2jms.gestiongastosapp.components.GraficoLineas
 import com.dam2jms.gestiongastosapp.data.CategoriaAPI
 import com.dam2jms.gestiongastosapp.models.AuxViewModel
 import com.dam2jms.gestiongastosapp.models.MonedasViewModel
-import com.dam2jms.gestiongastosapp.models.GraficosViewModel
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
 import com.dam2jms.gestiongastosapp.states.GraficosUiState
 import com.dam2jms.gestiongastosapp.ui.theme.*

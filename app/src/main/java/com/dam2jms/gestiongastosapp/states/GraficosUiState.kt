@@ -2,7 +2,6 @@ package com.dam2jms.gestiongastosapp.states
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import com.dam2jms.gestiongastosapp.models.GraficosViewModel
 import java.time.LocalDate
 
 @RequiresApi(Build.VERSION_CODES.O)

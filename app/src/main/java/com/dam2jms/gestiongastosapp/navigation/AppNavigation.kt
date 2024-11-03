@@ -1,5 +1,6 @@
 package com.dam2jms.gestiongastosapp.navigation
 
+import GraficosViewModel
 import HomeScreen
 import HomeViewModel
 import android.os.Build
@@ -17,7 +18,6 @@ import com.dam2jms.gestiongastosapp.models.CalculadoraViewModel
 import com.dam2jms.gestiongastosapp.models.MonedasViewModel
 import com.dam2jms.gestiongastosapp.models.EditTransactionViewModel
 import com.dam2jms.gestiongastosapp.screens.GraficosScreen
-import com.dam2jms.gestiongastosapp.models.GraficosViewModel
 import com.dam2jms.gestiongastosapp.models.HistoryViewModel
 import com.dam2jms.gestiongastosapp.models.LoginViewModel
 import com.dam2jms.gestiongastosapp.models.RegisterViewModel
