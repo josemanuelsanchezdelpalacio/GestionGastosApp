@@ -1,262 +1,258 @@
-package com.dam2jms.gestiongastosapp.components
-
-import android.content.Context
-import android.os.Build
-import androidx.annotation.RequiresApi
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCard
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.capitalize
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.dam2jms.gestiongastosapp.data.Categoria
+import com.dam2jms.gestiongastosapp.data.obtenerIconoCategoria
 import com.dam2jms.gestiongastosapp.ui.theme.*
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
-import com.dam2jms.gestiongastosapp.data.Categoria
-import com.dam2jms.gestiongastosapp.models.CurrencyViewModel
-import com.dam2jms.gestiongastosapp.models.TransactionViewModel
-import com.dam2jms.gestiongastosapp.states.TransactionState
+import com.dam2jms.gestiongastosapp.models.MonedasViewModel
+import com.dam2jms.gestiongastosapp.states.TransactionUiState
+import kotlinx.coroutines.flow.update
 
 object ItemComponents {
 
-    /**
-     * componente que representa un elemento de transaccion en la lista
-     * @param navController controlador de navegacion entre pantallas
-     * @param mvvm viewmodel que tiene la logica y el estado de la transaccion
-     * @param context contexto para mostrar mensajes
-     * **/
-    @RequiresApi(Build.VERSION_CODES.O)
+    /**metodo para crear un componente reutilizable para la innformacion de las transacciones en un card con opciones para editar y eliminar**/
     @Composable
-    fun TransactionItem(transaccion: TransactionState, navController: NavController, mvvm: TransactionViewModel, context: Context) {
+    fun TransaccionItem(
+        transaccion: TransactionUiState,
+        monedaActual: String,
+        navController: NavController,
+        onEliminar: (String) -> Unit,
+        onClick: () -> Unit // Agregado el parámetro onClick
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+                .shadow(4.dp, RoundedCornerShape(8.dp)),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = colorFondo)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .clickable(onClick = onClick), // Hacer que toda la tarjeta sea clickeable
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Información de la transacción
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = transaccion.descripcion,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = blanco
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "${monedaActual} ${String.format("%,.2f", transaccion.cantidad)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (transaccion.tipo == "ingreso") verde else rojo
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = transaccion.fecha,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = grisClaro
+                    )
+                }
+
+                // Botones para editar y eliminar
+                Row {
+                    IconButton(
+                        onClick = {
+                            navController.navigate(AppScreen.EditTransactionScreen.createRoute(transaccion.id))
+                        },
+                        content = {
+                            Icon(Icons.Filled.Edit, contentDescription = "Editar transacción", tint = blanco)
+                        }
+                    )
+
+                    IconButton(
+                        onClick = { onEliminar(transaccion.id) },
+                        content = {
+                            Icon(Icons.Filled.Delete, contentDescription = "Eliminar transacción", tint = blanco)
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    /**metodo reutilizable para crear una lista de monedas seleccionables**/
+    @Composable
+    fun SelectorMoneda(monedasViewModel: MonedasViewModel, onDismiss: () -> Unit, monedaSeleccionada: (String) -> Unit) {
+
+        val monedas by monedasViewModel.monedasDisponibles.collectAsState()
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Seleccionar moneda") },
+            text = {
+                LazyColumn {
+                    items(monedas) { moneda ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { monedaSeleccionada(moneda) }
+                                .padding(vertical = 8.dp, horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = monedasViewModel.obtenerSimboloMoneda(moneda),
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.width(40.dp)
+                            )
+                            Text(text = monedasViewModel.obtenerNombreMoneda(moneda))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun SelectorCategoria(selectedCategory: String, categorias: List<Categoria>, onCategorySelected: (String) -> Unit) {
 
         var expanded by remember { mutableStateOf(false) }
-        var validarElimar by remember { mutableStateOf(false) }
 
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-                .clickable { expanded = !expanded }
-                .border(1.dp, naranjaClaro, shape = RoundedCornerShape(8.dp)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = "Categoria: ${transaccion.categoria}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Cantidad: ${transaccion.cantidad}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Fecha: ${transaccion.fecha}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Tipo: ${transaccion.tipo.capitalize()}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-
-                if (expanded) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Absolute.SpaceBetween
-                    ) {
-                        Button(
-                            onClick = {
-                                navController.navigate(
-                                    AppScreen.EditTransactionScreen.createRoute(
-                                        transaccion.id
-                                    )
-                                )
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = naranjaClaro),
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = "modificar",
-                                tint = blanco
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "Modificar", color = blanco)
-                        }
-
-                        Button(
-                            onClick = { validarElimar = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = rojo),
-                            modifier = Modifier.padding(end = 8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "eliminar",
-                                tint = blanco
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "Eliminar", color = blanco)
-                        }
-                    }
-                }
-            }
-        }
-
-        if (validarElimar) {
-            AlertDialog(
-                onDismissRequest = { validarElimar = false },
-                title = { Text(text = "Confirmar eliminacion") },
-                text = { Text(text = "¿Estas seguro de eliminar esta transaccion?") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            mvvm.eliminarTransaccionExistente(
-                                coleccion = if (transaccion.tipo == "ingreso") "ingresos" else "gastos",
-                                transaccionId = transaccion.id,
-                                context = context
-                            )
-                            validarElimar = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = rojo)
-                    ) {
-                        Text(text = "Eliminar")
-                    }
-                },
-                dismissButton = {
-                    Button(onClick = { validarElimar = false }) {
-                        Text(text = "Cancelar")
-                    }
-                }
+            Text(
+                text = "Categoría",
+                style = MaterialTheme.typography.bodyLarge,
+                color = blanco,
+                fontWeight = FontWeight.Medium
             )
-        }
-    }
 
-    /**
-     * metodo que devuelve un icono de categoria basado en su nombre
-     * @param categoria nombre de la categoria
-     * @return un icono que representa la categoria
-     * */
-    @Composable
-    fun obtenerIconoCategoria(categoria: String): ImageVector{
-        return when(categoria.toLowerCase()){
-            "salario" -> Icons.Default.Money
-            "casa" -> Icons.Default.Home
-            "ropa" -> Icons.Default.ShoppingBag
-            "educacion" -> Icons.Default.School
-            "entretenimiento" -> Icons.Default.Movie
-            "regalo" -> Icons.Default.CardGiftcard
-            "mascota" -> Icons.Default.Pets
-            "viajes" -> Icons.Default.Flight
-            else -> Icons.Default.Category
-        }
-    }
-
-    /**
-     * componente que representa una categoria, usado para mostrar una lista de categorias
-     * @param categoria la categoria que sera mostrada
-     * @param onClick accion que sera ejecutada cuandos e haga clic en el elemento
-     * */
-    @Composable
-    fun categoriaItem(categoria: Categoria, onClick:() -> Unit){
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onClick() },
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Row (
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ){
-                Icon(
-                    imageVector = obtenerIconoCategoria(categoria = categoria.nombre),
-                    contentDescription = categoria.nombre,
-                    tint = naranjaClaro,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(text = categoria.nombre, style = MaterialTheme.typography.bodyLarge)
-            }
-        }
-    }
-}
-
-@Composable
-fun CurrencySelectionDialog(
-    currencyViewModel: CurrencyViewModel,
-    onDismiss: () -> Unit,
-    onCurrencySelected: (String) -> Unit
-) {
-    val currencies by currencyViewModel.monedasDisponibles.collectAsState()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Seleccionar Moneda") },
-        text = {
-            LazyColumn {
-                items(currencies) { currency ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onCurrencySelected(currency) }
-                            .padding(vertical = 8.dp, horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = currencyViewModel.obtenerSimboloMoneda(currency),
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.width(40.dp)
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
+                    readOnly = true,
+                    value = selectedCategory.replaceFirstChar { it.uppercase() },
+                    onValueChange = {}, // Este campo es solo de lectura
+                    leadingIcon = {
+                        Icon(
+                            imageVector = obtenerIconoCategoria(selectedCategory),
+                            contentDescription = "Icono categoría",
+                            tint = naranjaClaro
                         )
-                        Text(text = currencyViewModel.obtenerNombreMoneda(currency))
+                    },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    textStyle = TextStyle(color = blanco),
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        focusedBorderColor = naranjaClaro,
+                        unfocusedBorderColor = naranjaClaro,
+                        focusedLabelColor = naranjaClaro,
+                        unfocusedLabelColor = naranjaClaro,
+                        cursorColor = naranjaClaro,
+                        containerColor = Color.Transparent
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(grisClaro, grisClaro)
+                            )
+                        )
+                ) {
+                    categorias.forEach { categoria ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    horizontalArrangement = Arrangement.Start,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = obtenerIconoCategoria(categoria.nombre),
+                                        contentDescription = "Icono ${categoria.nombre}",
+                                        tint = naranjaClaro,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = categoria.nombre.replaceFirstChar { it.uppercase() },
+                                        color = blanco
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onCategorySelected(categoria.nombre)
+                                expanded = false
+                            },
+                            colors = MenuDefaults.itemColors(
+                                textColor = blanco,
+                                leadingIconColor = naranjaClaro
+                            ),
+                            modifier = Modifier.background(
+                                if (categoria.nombre == selectedCategory) {
+                                    naranjaClaro.copy(alpha = 0.1f)
+                                } else {
+                                    Color.Transparent
+                                }
+                            )
+                        )
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
-            }
         }
-    )
+    }
 }
+
 
 

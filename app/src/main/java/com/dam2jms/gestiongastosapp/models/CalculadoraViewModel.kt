@@ -1,222 +1,144 @@
 package com.dam2jms.gestiongastosapp.models
 
+import android.content.Context
 import android.os.Build
-import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.dam2jms.gestiongastosapp.states.CalculadoraUiState
 import com.dam2jms.gestiongastosapp.states.FilaPrestamo
-import com.dam2jms.gestiongastosapp.utils.FireStoreUtil
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
 @RequiresApi(Build.VERSION_CODES.O)
 class CalculadoraViewModel : ViewModel() {
+
+    //para controlar el estado de la UI
     private val _uiState = MutableStateFlow(CalculadoraUiState())
     val uiState: StateFlow<CalculadoraUiState> = _uiState.asStateFlow()
 
-    private val firestore = FirebaseFirestore.getInstance()
-    private val currentUserId: String?
-        get() = Firebase.auth.currentUser?.uid
+    /** metodo para calcular un prestamo basado en la cantidad, tasa de interes anual y plazo en meses*/
+    fun calcularPrestamo(cantidad: Double, tasaAnual: Double, plazoMeses: Int, context: Context) {
 
-    init {
-        viewModelScope.launch {
-            actualizarResumenFinanciero()
+        //compruebo que los datos que escribe el usuario sean validos
+        if (cantidad <= 0 || tasaAnual < 0 || plazoMeses <= 0) {
+            Toast.makeText(context, "Datos de entrada no validos", Toast.LENGTH_SHORT).show()
+            return
         }
-    }
 
-    // Funciones de Meta Financiera
-    fun actualizarMetaFinanciera(nuevaMeta: Double) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(metaFinanciera = nuevaMeta) }
-            guardarMetaEnFirestore(nuevaMeta)
-        }
-    }
+        //calculo la tasa de interes mensual
+        val tasaMensual = tasaAnual / 12 / 100
 
-    private fun guardarMetaEnFirestore(meta: Double) {
-        currentUserId?.let { userId ->
-            firestore.collection("users")
-                .document(userId)
-                .update("metaFinanciera", meta)
-                .addOnFailureListener { e ->
-                    Log.e(TAG, "Error al guardar meta: ", e)
-                }
-        }
-    }
+        //formula para calcular la cuota mensual del prestamo
+        val cuotaMensual = cantidad * tasaMensual * (1 + tasaMensual).pow(plazoMeses) / ((1 + tasaMensual).pow(plazoMeses) - 1)
 
-    // Funciones de Resumen Financiero
-    private fun actualizarResumenFinanciero() {
-        currentUserId?.let { userId ->
-            FireStoreUtil.obtenerTransacciones(
-                onSuccess = { transacciones ->
-                    val ingresos = transacciones.filter { it.tipo == "ingreso" }.sumOf { it.cantidad }
-                    val gastos = transacciones.filter { it.tipo == "gasto" }.sumOf { it.cantidad }
-                    val balance = ingresos - gastos
+        //listo para almacenar la tabla de amortizacion (detalles de las fechas y cantidades a pagar) del prestamo
+        val tablaPrestamo = mutableListOf<FilaPrestamo>()
 
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            ingresosTotales = ingresos,
-                            gastosTotales = gastos,
-                            balanceTotal = balance,
-                            progresoMeta = calcularProgresoMeta(balance, currentState.metaFinanciera)
-                        )
-                    }
-                },
-                onFailure = { e ->
-                    Log.e(TAG, "Error al obtener transacciones: ", e)
-                }
-            )
+        //saldo pendiente del prestamo
+        var saldoPendiente = cantidad
 
-            // Obtener meta financiera guardada
-            firestore.collection("users")
-                .document(userId)
-                .get()
-                .addOnSuccessListener { document ->
-                    document.getDouble("metaFinanciera")?.let { meta ->
-                        _uiState.update { it.copy(metaFinanciera = meta) }
-                    }
-                }
-        }
-    }
+        //para calcular cada fila de la tabla de amortizacion por cada mes
+        for (mes in 1..plazoMeses) {
 
-    private fun calcularProgresoMeta(balance: Double, meta: Double): Double {
-        return if (meta > 0) (balance / meta * 100).coerceIn(0.0, 100.0) else 0.0
-    }
+            //calculo el interes del mes actual
+            val interesMes = saldoPendiente * tasaMensual
 
-    fun calcularDivisionGasto(totalGasto: Double, numPersonas: Int): Double {
-        return if (numPersonas > 0) {
-            totalGasto / numPersonas
-        } else {
-            0.0
-        }
-    }
+            //calculo la cantidad pagada en el mes actual
+            val capitalMes = cuotaMensual - interesMes
 
-    // Funciones de Préstamo
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun calcularPrestamo(montoPrestamo: Double, tasaInteresAnual: Double, años: Int) {
-        viewModelScope.launch {
-            try {
-                val tasaMensual = tasaInteresAnual / 12 / 100
-                val meses = años * 12
-                val cuota = calcularCuotaMensual(montoPrestamo, tasaMensual, meses)
-                val tablaPrestamo = generarTablaPrestamo(montoPrestamo, tasaMensual, cuota, meses)
+            //actualizo el salddo pendiente
+            saldoPendiente -= capitalMes
 
-                _uiState.update {
-                    it.copy(
-                        cuotaPrestamo = cuota,
-                        tablaPrestamo = tablaPrestamo
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error en cálculo de préstamo: ", e)
-            }
-        }
-    }
-
-    private fun calcularCuotaMensual(montoPrestamo: Double, tasaMensual: Double, meses: Int): Double {
-        return montoPrestamo * tasaMensual * (1 + tasaMensual).pow(meses) / ((1 + tasaMensual).pow(meses) - 1)
-    }
-
-    private fun generarTablaPrestamo(
-        montoPrestamo: Double,
-        tasaMensual: Double,
-        cuota: Double,
-        meses: Int
-    ): List<FilaPrestamo> {
-        val tabla = mutableListOf<FilaPrestamo>()
-        var capitalPendiente = montoPrestamo
-
-        for (numeroCuota in 1..meses) {
-            val interesMes = capitalPendiente * tasaMensual
-            val amortizacion = cuota - interesMes
-            capitalPendiente = maxOf(0.0, capitalPendiente - amortizacion)
-
-            tabla.add(
+            //añado una fila a la tabla de amortizacion con los datos calculados
+            tablaPrestamo.add(
                 FilaPrestamo(
-                    numeroCuota = numeroCuota,
-                    cuota = redondearDosDecimales(cuota),
-                    interes = redondearDosDecimales(interesMes),
-                    amortizacion = redondearDosDecimales(amortizacion),
-                    capitalPendiente = redondearDosDecimales(capitalPendiente)
+                    mes = mes,
+                    cuota = cuotaMensual.roundToDecimal(2),
+                    capital = capitalMes.roundToDecimal(2),
+                    interes = interesMes.roundToDecimal(2),
+                    saldoPendiente = saldoPendiente.roundToDecimal(2)
                 )
             )
         }
-        return tabla
+
+        //actualizo la UI con la cuota mensual, total de intereses y tabla de amortizacion
+        _uiState.update { it.copy(
+            cuotaPrestamo = cuotaMensual.roundToDecimal(2),
+            totalIntereses = (cuotaMensual * plazoMeses - cantidad).roundToDecimal(2),
+            tablaPrestamo = tablaPrestamo
+        )}
     }
 
-    // Función auxiliar para redondear a dos decimales
-    private fun redondearDosDecimales(valor: Double): Double {
-        return (valor * 100).roundToInt() / 100.0
-    }
+    /** metodo para calcular la division de gastos entre varias personas*/
+    fun calcularDivisionGastos(cantidadTotal: Double, numeroPersonas: Int, context: Context) {
 
-    // Funciones de Jubilación
-    fun calcularPlanJubilacion(
-        edadActual: Int,
-        edadJubilacion: Int,
-        gastosMensualesDeseados: Double,
-        ahorroActual: Double,
-        rendimientoAnualEsperado: Double,
-        inflacionEstimada: Double = 2.0
-    ) {
-        viewModelScope.launch {
-            try {
-                val ahorroMensual = calcularAhorroMensualNecesario(
-                    edadActual, edadJubilacion, gastosMensualesDeseados,
-                    ahorroActual, rendimientoAnualEsperado, inflacionEstimada
-                )
-
-                _uiState.update {
-                    it.copy(
-                        ahorroMensualNecesario = ahorroMensual,
-                        montoFinalJubilacion = calcularMontoFinalJubilacion(ahorroMensual, edadActual, edadJubilacion)
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error en cálculo de jubilación: ", e)
-            }
+        //compruebo que los datos sean validos
+        if (cantidadTotal < 0 || numeroPersonas <= 0) {
+            Toast.makeText(context, "Datos de entrada no validos", Toast.LENGTH_SHORT).show()
+            return
         }
+
+        //calculo la cantidad correspondiente a cada persona
+        val cantidadPorPersona = (cantidadTotal / numeroPersonas).roundToDecimal(2)
+
+        //actualizo la UI con los datos calculados
+        _uiState.update { it.copy(
+            cantidadPorPersona = cantidadPorPersona,
+            totalPersonas = numeroPersonas
+        )}
     }
 
-    private fun calcularAhorroMensualNecesario(
-        edadActual: Int,
-        edadJubilacion: Int,
-        gastosMensualesDeseados: Double,
-        ahorroActual: Double,
-        rendimientoAnualEsperado: Double,
-        inflacionEstimada: Double
-    ): Double {
-        val añosHastaJubilacion = edadJubilacion - edadActual
-        val añosDeJubilacion = ESPERANZA_VIDA - edadJubilacion
-        val factorInflacion = (1 + inflacionEstimada / 100).pow(añosHastaJubilacion)
-        val gastosMensualesAjustados = gastosMensualesDeseados * factorInflacion
-        val gastosTotalesNecesarios = gastosMensualesAjustados * 12 * añosDeJubilacion
-        val tasaReal = (1 + rendimientoAnualEsperado / 100) / (1 + inflacionEstimada / 100) - 1
-        val tasaMensualReal = tasaReal / 12
+    /** metodo para calcular el retorno de inversion (ROI)*/
+    fun calcularROI(inversionInicial: Double, retornoFinal: Double, context: Context) {
 
-        return (gastosTotalesNecesarios - ahorroActual * (1 + tasaMensualReal).pow(añosHastaJubilacion * 12)) /
-                (añosHastaJubilacion * 12)
+        //compruebo que la inversion inicial sea válida
+        if (inversionInicial <= 0) {
+            Toast.makeText(context, "La inversion inicial debe ser mayor que cero", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        //calculo el ROI como el porcentaje de ganancia sobre la inversion inicial
+        val roi = ((retornoFinal - inversionInicial) / inversionInicial * 100).roundToDecimal(2)
+
+        //actualizo la UI con el ROI y la ganancia total
+        _uiState.update { it.copy(
+            roi = roi,
+            gananciaTotal = (retornoFinal - inversionInicial).roundToDecimal(2)
+        )}
     }
 
-    private fun calcularMontoFinalJubilacion(
-        ahorroMensual: Double,
-        edadActual: Int,
-        edadJubilacion: Int
-    ): Double {
-        val añosAhorro = edadJubilacion - edadActual
-        return ahorroMensual * 12 * añosAhorro
+    /**metodo para calcular el efecto de la inflacion en una cantidad a lo largo del tiempo*/
+    fun calcularInflacion(montoOriginal: Double, tasaInflacion: Double, años: Int, context: Context) {
+
+        //compruebo que los datos sean validos
+        if (montoOriginal <= 0 || tasaInflacion < 0 || años < 0) {
+            Toast.makeText(context, "Datos de entrada no validos", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        //calculo la cantidad ajustada con la inflacion despues de los años indicados
+        val cantidadFinal = montoOriginal * (1 + tasaInflacion / 100).pow(años)
+
+        //calculo la perdida de poder adquisitivo en base a la cantidad original
+        val perdidaPoder = montoOriginal - cantidadFinal
+
+        //actualizoz el estado de la UI con los datos calculados
+        _uiState.update { it.copy(
+            montoAjustadoInflacion = cantidadFinal.roundToDecimal(2),
+            perdidaPoderAdquisitivo = perdidaPoder.roundToDecimal(2)
+        )}
     }
 
-    companion object {
-        private const val TAG = "CalculadoraViewModel"
-        private const val ESPERANZA_VIDA = 85
+    /**metodo para redondear un numero*/
+    private fun Double.roundToDecimal(decimals: Int): Double {
+        val factor = 10.0.pow(decimals)
+        return (this * factor).roundToInt() / factor
     }
 }
+
+

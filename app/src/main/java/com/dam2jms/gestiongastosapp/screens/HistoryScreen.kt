@@ -2,28 +2,31 @@ package com.dam2jms.gestiongastosapp.screens
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.dam2jms.gestiongastosapp.components.BottomAppBarReutilizable
 import com.dam2jms.gestiongastosapp.components.DatePickerComponents.showDatePicker
-import com.dam2jms.gestiongastosapp.components.ItemComponents.TransactionItem
 import com.dam2jms.gestiongastosapp.data.Categoria
 import com.dam2jms.gestiongastosapp.data.CategoriaAPI
 import com.dam2jms.gestiongastosapp.models.AuxViewModel
 import com.dam2jms.gestiongastosapp.models.HistoryViewModel
-import com.dam2jms.gestiongastosapp.models.TransactionViewModel
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
 import com.dam2jms.gestiongastosapp.states.UiState
 import com.dam2jms.gestiongastosapp.ui.theme.*
@@ -34,71 +37,96 @@ import java.time.format.DateTimeFormatter
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HistoryScreen(navController: NavController, auxViewModel: AuxViewModel, mvvm: HistoryViewModel) {
+
     val uiState by mvvm.uiState.collectAsState()
     val context = LocalContext.current
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Historial de Transacciones", color = blanco, fontWeight = FontWeight.Bold) },
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "HISTORIAL DE TRANSACCIONES",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = blanco
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorFondo),
                 navigationIcon = {
                     IconButton(onClick = { navController.navigate(AppScreen.HomeScreen.route) }) {
-                        Icon(Icons.Default.ArrowBack, "Atrás", tint = blanco)
+                        Icon(Icons.Default.ArrowBackIosNew, contentDescription = "atras", tint = blanco)
                     }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = naranjaOscuro)
+                }
             )
         },
         bottomBar = {
-            auxViewModel.bottomAppBar(navController)
-        }
+            BottomAppBarReutilizable(
+                navController = navController,
+                screenActual = AppScreen.HistoryScreen,
+                cambiarSeccion = { pantalla ->
+                    navController.navigate(pantalla.route)
+                }
+            )
+        },
+        containerColor = colorFondo
     ) { paddingValues ->
-        HistoryScreenContent(
+        HistoryBodyScreen(
             paddingValues = paddingValues,
-            uiState = uiState,
             mvvm = mvvm,
-            navController = navController
+            auxViewModel = auxViewModel,
+            navController = navController,
+            uiState = uiState
         )
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun HistoryScreenContent(
+fun HistoryBodyScreen(
     paddingValues: PaddingValues,
-    uiState: UiState,
     mvvm: HistoryViewModel,
-    navController: NavController
+    auxViewModel: AuxViewModel,
+    navController: NavController,
+    uiState: UiState
 ) {
-    var buscarTipo by remember { mutableStateOf("fecha") }
+
     var tipo by remember { mutableStateOf("todos") }
+    var buscarTipo by remember { mutableStateOf("fecha") }
+
     var buscarFecha by remember { mutableStateOf(LocalDate.now()) }
     var buscarCategoria by remember { mutableStateOf("") }
+
     var categorias by remember { mutableStateOf<List<Categoria>>(emptyList()) }
+
     val context = LocalContext.current
 
-    LaunchedEffect(tipo) {
+    LaunchedEffect(tipo, buscarFecha, buscarCategoria) {
         categorias = CategoriaAPI.obtenerCategorias(if (tipo == "todos") "" else tipo)
+        mvvm.buscarTransacciones(buscarTipo, tipo, buscarFecha, buscarCategoria)
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(colorFondo, colorFondo.copy(alpha = 0.8f)),
-                    startY = 0f,
-                    endY = Float.POSITIVE_INFINITY
-                )
-            )
+            .background(colorFondo)
             .padding(paddingValues)
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = naranjaClaro.copy(alpha = 0.1f))
+                .padding(vertical = 4.dp)
+                .shadow(6.dp, RoundedCornerShape(18.dp)),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = colorFondo),
+            border = BorderStroke(2.dp, naranjaClaro)
         ) {
             Row(
                 modifier = Modifier
@@ -106,71 +134,110 @@ fun HistoryScreenContent(
                     .padding(8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                FilterChip(
-                    selected = buscarTipo == "fecha",
+
+                OutlinedButton(
                     onClick = { buscarTipo = "fecha" },
-                    label = { Text("Fecha") },
-                    leadingIcon = {
-                        if (buscarTipo == "fecha") {
-                            Icon(Icons.Filled.Check, contentDescription = null)
-                        }
-                    }
-                )
-                FilterChip(
-                    selected = buscarTipo == "categoria",
+                    modifier = Modifier.padding(4.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (buscarTipo == "fecha") naranjaClaro else Color.Transparent,
+                        contentColor = if (buscarTipo == "fecha") blanco else naranjaClaro
+                    ),
+                    border = BorderStroke(1.dp, if (buscarTipo == "fecha") naranjaClaro else naranjaClaro)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Fecha")
+                }
+
+                OutlinedButton(
                     onClick = { buscarTipo = "categoria" },
-                    label = { Text("Categoría") },
-                    leadingIcon = {
-                        if (buscarTipo == "categoria") {
-                            Icon(Icons.Filled.Check, contentDescription = null)
-                        }
-                    }
-                )
+                    modifier = Modifier.padding(4.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (buscarTipo == "categoria") naranjaClaro else Color.Transparent,
+                        contentColor = if (buscarTipo == "categoria") blanco else naranjaClaro
+                    ),
+                    border = BorderStroke(1.dp, if (buscarTipo == "categoria") naranjaClaro else naranjaClaro)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Category,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Text("Categoria")
+                }
             }
         }
 
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = naranjaClaro.copy(alpha = 0.1f))
+                .padding(vertical = 4.dp)
+                .shadow(6.dp, RoundedCornerShape(18.dp)),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = colorFondo),
+            border = BorderStroke(2.dp, naranjaClaro)
         ) {
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                FilterChip(
-                    selected = tipo == "todos",
+                OutlinedButton(
                     onClick = { tipo = "todos" },
-                    label = { Text("Todos") },
-                    leadingIcon = {
-                        if (tipo == "todos") {
-                            Icon(Icons.Filled.Check, contentDescription = null)
-                        }
-                    }
-                )
-                FilterChip(
-                    selected = tipo == "ingreso",
+                    modifier = Modifier.padding(4.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (tipo == "todos") naranjaClaro else Color.Transparent,
+                        contentColor = if (tipo == "todos") blanco else naranjaClaro
+                    ),
+                    border = BorderStroke(1.dp, if (tipo == "todos") naranjaClaro else naranjaClaro)
+                ) {
+                    Text("Todos")
+                }
+
+                OutlinedButton(
                     onClick = { tipo = "ingreso" },
-                    label = { Text("Ingresos") },
-                    leadingIcon = {
-                        if (tipo == "ingreso") {
-                            Icon(Icons.Filled.Check, contentDescription = null)
-                        }
-                    }
-                )
-                FilterChip(
-                    selected = tipo == "gasto",
+                    modifier = Modifier.padding(4.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (tipo == "ingreso") verde else Color.Transparent,
+                        contentColor = if (tipo == "ingreso") blanco else naranjaClaro
+                    ),
+                    border = BorderStroke(1.dp, if (tipo == "ingreso") verde else naranjaClaro)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.TrendingUp,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Ingresos")
+                }
+
+                OutlinedButton(
                     onClick = { tipo = "gasto" },
-                    label = { Text("Gastos") },
-                    leadingIcon = {
-                        if (tipo == "gasto") {
-                            Icon(Icons.Filled.Check, contentDescription = null)
-                        }
-                    }
-                )
+                    modifier = Modifier.padding(4.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (tipo == "gasto") rojo else Color.Transparent,
+                        contentColor = if (tipo == "gasto") blanco else naranjaClaro
+                    ),
+                    border = BorderStroke(1.dp, if (tipo == "gasto") rojo else naranjaClaro)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.TrendingDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Gastos")
+                }
             }
         }
 
@@ -181,8 +248,14 @@ fun HistoryScreenContent(
                         buscarFecha = nuevaFecha
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = naranjaOscuro)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = grisClaro,
+                    contentColor = naranjaClaro
+                ),
+                border = BorderStroke(1.dp, naranjaClaro)
             ) {
                 Icon(Icons.Default.DateRange, contentDescription = "Seleccionar fecha")
                 Spacer(modifier = Modifier.width(8.dp))
@@ -194,54 +267,56 @@ fun HistoryScreenContent(
                 selectedCategory = buscarCategoria,
                 onCategorySelected = { categoria ->
                     buscarCategoria = categoria
-                }
+                },
+                tipo = uiState.tipo
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = {
-                mvvm.buscarTransacciones(buscarTipo, tipo, buscarFecha, buscarCategoria)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = naranjaOscuro)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .shadow(6.dp, RoundedCornerShape(18.dp)),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = colorFondo),
+            border = BorderStroke(2.dp, naranjaClaro)
         ) {
-            Icon(Icons.Default.Search, contentDescription = "Buscar")
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Buscar Transacciones")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (uiState.transaccionesFiltradas.isNotEmpty()) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 16.dp)
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.Start
             ) {
-                items(uiState.transaccionesFiltradas) { transaccion ->
-                    TransactionItem(
-                        transaccion = transaccion,
-                        navController = navController,
-                        mvvm = TransactionViewModel(),
-                        context = context
+                Text("Transacciones", color = grisClaro, style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (uiState.transaccionesFiltradas.isNotEmpty()) {
+                    LazyColumn {
+                        items(uiState.transaccionesFiltradas) { transaccion ->
+                            ItemComponents.TransaccionItem(
+                                transaccion = transaccion,
+                                monedaActual = uiState.monedaActual,
+                                navController = navController,
+                                onEliminar = { transactionId ->
+                                    auxViewModel.eliminarTransaccionExistente(transaccion.tipo, transactionId, context)
+                                },
+                                onClick = { navController.navigate(AppScreen.EditTransactionScreen.createRoute(transaccion.id)) }
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                } else {
+                    Text(
+                        "No hay transacciones que coincidan con los criterios de búsqueda",
+                        color = grisClaro,
+                        style = MaterialTheme.typography.bodySmall
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
-            }
-        } else {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No hay transacciones que coincidan con los criterios de búsqueda",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = naranjaClaro,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp)
-                )
             }
         }
     }
 }
+
+
+

@@ -1,40 +1,67 @@
 package com.dam2jms.gestiongastosapp.data
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.create
-import retrofit2.http.GET
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.Money
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.ui.graphics.vector.ImageVector
 
-/** Simula una API para obtener categorias de ingresos y gastos*/
-data class Categoria(val id: String, val nombre: String, var tipo: String)
+data class Categoria(val id: String, val nombre: String, val tipo: String)
 
 object CategoriaAPI {
 
-    /**metodo que obtiene una lista de categorias segun el tipo (ingreso o gasto)
-     * @param tipo Tipo de categoria a obtener. Puede ser ingreso o gasto
-     * @return Lista de categorias segun el tipo
-     * */
-    suspend fun obtenerCategorias(tipo: String): List<Categoria> = withContext(Dispatchers.IO) {
-        when(tipo){
-            "ingreso" -> listOf(
-                Categoria(id = "1", nombre = "reembolso", tipo = "ingreso"),
-                Categoria(id = "2", nombre = "salario", tipo = "ingreso"),
-                Categoria(id = "3", nombre = "otros", tipo = "ingreso")
-            )
+    /** Constantes para tipos de categorías */
+    object TipoCategoria {
+        const val INGRESO = "ingreso"
+        const val GASTO = "gasto"
+    }
 
-            "gasto" -> listOf(
-                Categoria(id = "4", nombre = "casa", tipo = "gasto"),
-                Categoria(id = "5", nombre = "ropa", tipo = "gasto"),
-                Categoria(id = "6", nombre = "educacion", tipo = "gasto"),
-                Categoria(id = "7", nombre = "entretenimiento", tipo = "gasto"),
-                Categoria(id = "8", nombre = "regalo", tipo = "gasto"),
-                Categoria(id = "9", nombre = "mascota", tipo = "gasto"),
-                Categoria(id = "10", nombre = "viajes", tipo = "gasto"),
-                Categoria(id = "11", nombre = "otros", tipo = "gasto")
+    /** Método para obtener una lista de categorías según el tipo (ingreso o gasto) */
+    fun obtenerCategorias(tipo: String): List<Categoria> {
+        return when (tipo) {
+            TipoCategoria.INGRESO -> listOf(
+                Categoria(id = "1", nombre = "reembolso", tipo = TipoCategoria.INGRESO),
+                Categoria(id = "2", nombre = "salario", tipo = TipoCategoria.INGRESO),
+                Categoria(id = "3", nombre = "otros", tipo = TipoCategoria.INGRESO)
             )
-            else -> emptyList()
+            TipoCategoria.GASTO -> listOf(
+                Categoria(id = "4", nombre = "casa", tipo = TipoCategoria.GASTO),
+                Categoria(id = "5", nombre = "ropa", tipo = TipoCategoria.GASTO),
+                Categoria(id = "6", nombre = "educación", tipo = TipoCategoria.GASTO),
+                Categoria(id = "7", nombre = "entretenimiento", tipo = TipoCategoria.GASTO),
+                Categoria(id = "8", nombre = "regalo", tipo = TipoCategoria.GASTO),
+                Categoria(id = "9", nombre = "mascota", tipo = TipoCategoria.GASTO),
+                Categoria(id = "10", nombre = "viajes", tipo = TipoCategoria.GASTO),
+                Categoria(id = "11", nombre = "otros", tipo = TipoCategoria.GASTO)
+            )
+            else -> {
+                println("Tipo de categoría no válido: $tipo")
+                emptyList()
+            }
         }
     }
 }
+
+/** Método para añadir un icono a cada categoría */
+fun obtenerIconoCategoria(nombreCategoria: String): ImageVector {
+    return when (nombreCategoria.lowercase()) {
+        "reembolso" -> Icons.Default.MonetizationOn
+        "salario" -> Icons.Default.Money
+        "casa" -> Icons.Default.Home
+        "ropa" -> Icons.Default.ShoppingBag
+        "educación" -> Icons.Default.School
+        "entretenimiento" -> Icons.Default.Movie
+        "regalo" -> Icons.Default.CardGiftcard
+        "mascota" -> Icons.Default.Pets
+        "viajes" -> Icons.Default.Flight
+        else -> Icons.Default.Category
+    }
+}
+

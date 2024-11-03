@@ -1,220 +1,250 @@
 package com.dam2jms.gestiongastosapp.screens
 
-import android.annotation.SuppressLint
+import ItemComponents.SelectorMoneda
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.ShowChart
-import androidx.compose.material3.Card
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.dam2jms.gestiongastosapp.components.BottomAppBarReutilizable
 import com.dam2jms.gestiongastosapp.components.GraficoBarras
 import com.dam2jms.gestiongastosapp.components.GraficoCircular
+import com.dam2jms.gestiongastosapp.components.GraficoCircularGastos
+import com.dam2jms.gestiongastosapp.components.GraficoCircularIngresos
 import com.dam2jms.gestiongastosapp.components.GraficoLineas
+import com.dam2jms.gestiongastosapp.data.CategoriaAPI
 import com.dam2jms.gestiongastosapp.models.AuxViewModel
+import com.dam2jms.gestiongastosapp.models.MonedasViewModel
 import com.dam2jms.gestiongastosapp.models.GraficosViewModel
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
-import com.dam2jms.gestiongastosapp.ui.theme.blanco
-import com.dam2jms.gestiongastosapp.ui.theme.colorFondo
-import com.dam2jms.gestiongastosapp.ui.theme.naranjaClaro
-import com.dam2jms.gestiongastosapp.ui.theme.naranjaOscuro
-import com.dam2jms.gestiongastosapp.ui.theme.rojo
-import com.dam2jms.gestiongastosapp.ui.theme.verde
-import java.text.NumberFormat
-import java.util.Locale
+import com.dam2jms.gestiongastosapp.states.GraficosUiState
+import com.dam2jms.gestiongastosapp.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun GraficosScreen(navController: NavController, graficosViewModel: GraficosViewModel, auxViewModel: AuxViewModel){
-
+fun GraficosScreen(
+    navController: NavController,
+    graficosViewModel: GraficosViewModel,
+    auxViewModel: AuxViewModel,
+    monedasViewModel: MonedasViewModel
+) {
     val uiState by graficosViewModel.uiState.collectAsState()
     var seleccionSeccion by remember { mutableStateOf(0) }
-    val cambiarMoneda = NumberFormat.getCurrencyInstance(Locale("es", "ES"))
+    var seleccionarRangoGraficos by remember { mutableStateOf(GraficosViewModel.RangoTiempo.MONTH) }
+    var mostrarListaMonedas by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(text = "GRAFICOS FINANCIEROS", color = blanco, fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = naranjaOscuro),
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "GRAFICOS FINANCIEROS",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = blanco
+                        ),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorFondo),
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(imageVector = Icons.Default.ArrowBackIosNew, contentDescription = "Atras")
+                        Icon(imageVector = Icons.Default.ArrowBackIosNew, contentDescription = "atras", tint = blanco)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { mostrarListaMonedas = true }) {
+                        Icon(
+                            Icons.Filled.MonetizationOn,
+                            contentDescription = "cambiar moneda",
+                            tint = blanco
+                        )
                     }
                 }
             )
         },
         bottomBar = {
-            auxViewModel.bottomAppBar(navController = navController)
-        }
+            BottomAppBarReutilizable(
+                navController = navController,
+                screenActual = AppScreen.TransactionScreen,
+                cambiarSeccion = { pantalla ->
+                    navController.navigate(pantalla.route)
+                }
+            )
+        },
+        containerColor = colorFondo
     ) { paddingValues ->
-        // Usar LazyColumn en lugar de combinar Column con verticalScroll
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Sección de encabezado antes de los gráficos
-            item {
-                ScrollableTabRow(
-                    selectedTabIndex = seleccionSeccion,
-                    containerColor = blanco,
-                    contentColor = naranjaOscuro
+        GraficosBodyScreen(
+            uiState = uiState,
+            seleccionSeccion = seleccionSeccion,
+            onSeleccionSeccionChange = { seleccionSeccion = it },
+            selectedRangoTiempo = seleccionarRangoGraficos,
+            onTimeRangeChange = {
+                seleccionarRangoGraficos = it
+                graficosViewModel.establecerRangoGraficos(it)
+            },
+            mostrarListaMonedas = mostrarListaMonedas,
+            onMostrarListaMonedasChange = { mostrarListaMonedas = it },
+            paddingValues = paddingValues
+        )
+
+        if (mostrarListaMonedas) {
+            SelectorMoneda(
+                monedasViewModel = monedasViewModel,
+                onDismiss = { mostrarListaMonedas = false },
+                monedaSeleccionada = {
+                    mostrarListaMonedas = false
+                }
+            )
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun GraficosBodyScreen(
+    uiState: GraficosUiState,
+    seleccionSeccion: Int,
+    onSeleccionSeccionChange: (Int) -> Unit,
+    selectedRangoTiempo: GraficosViewModel.RangoTiempo,
+    onTimeRangeChange: (GraficosViewModel.RangoTiempo) -> Unit,
+    mostrarListaMonedas: Boolean,
+    onMostrarListaMonedasChange: (Boolean) -> Unit,
+    paddingValues: PaddingValues
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(16.dp)
+    ) {
+        item {
+            ScrollableTabRow(
+                selectedTabIndex = seleccionSeccion,
+                containerColor = colorFondo,
+                contentColor = blanco,
+                edgePadding = 8.dp
+            ) {
+                listOf(
+                    "Ingresos vs Gastos" to Icons.Default.BarChart,
+                    "Evolución" to Icons.Default.ShowChart,
+                    "Categorías" to Icons.Default.PieChart
+                ).forEachIndexed { index, (titulo, icono) ->
+                    Tab(
+                        selected = seleccionSeccion == index,
+                        onClick = { onSeleccionSeccionChange(index) },
+                        text = { Text(text = titulo, color = blanco) },
+                        icon = { Icon(imageVector = icono, contentDescription = titulo, tint = if (seleccionSeccion == index) naranjaClaro else blanco) }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Gráficos según la sección seleccionada
+        item {
+            when (seleccionSeccion) {
+                0 -> GraficoBarras(
+                    ingresos = uiState.ingresos,
+                    gastos = uiState.gastos,
+                    fechas = uiState.fechas
+                )
+                1 -> GraficoLineas(
+                    datos = uiState.evolucionBalance,
+                    fechas = uiState.fechas
+                )
+                2 -> Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    listOf(
-                        "Ingresos vs Gastos" to Icons.Default.BarChart,
-                        "Evolucion" to Icons.Default.ShowChart,
-                        "Categorias" to Icons.Default.PieChart
-                    ).forEachIndexed { index, (titulo, icono) ->
-                        Tab(
-                            selected = seleccionSeccion == index,
-                            onClick = { seleccionSeccion = index },
-                            text = { Text(text = titulo) },
-                            icon = { Icon(imageVector = icono, contentDescription = titulo) }
-                        )
-                    }
+                    GraficoCircularIngresos(
+                        datosIngresos = uiState.ingresosPorCategoria,
+                        modifier = Modifier.weight(0.5f)
+                    )
+                    GraficoCircularGastos(
+                        datosGastos = uiState.gastosPorCategoria,
+                        modifier = Modifier.weight(0.5f)
+                    )
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
-            // Mostrar el gráfico correspondiente según la pestaña seleccionada
-            item {
-                when(seleccionSeccion){
-                    0 -> GraficoBarras(ingresos = uiState.ingresos, gastos = uiState.gastos, fechas = uiState.fechas)
-                    1 -> GraficoLineas(datos = uiState.evolucionBalance, fechas = uiState.fechas)
-                    2 -> GraficoCircular(datos = uiState.gastosPorCategoria)
-                }
+        // Resumen financiero y selector de rango temporal
+        item {
+            FinancialSummaryCard(
+                totalIngresos = uiState.totalIngresos,
+                totalGastos = uiState.totalGastos,
+                balanceTotal = uiState.balanceTotal,
+                ratioAhorro = uiState.ratioAhorro
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            TimeRangeSelector(
+                selectedRange = selectedRangoTiempo,
+                onRangeSelected = onTimeRangeChange
+            )
+        }
+    }
+}
+
+@Composable
+fun FinancialSummaryCard(
+    totalIngresos: Double,
+    totalGastos: Double,
+    balanceTotal: Double,
+    ratioAhorro: Double
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = colorFondo),
+        border = BorderStroke(2.dp, naranjaClaro), // Borde naranja claro
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Resumen Financiero", style = MaterialTheme.typography.titleMedium.copy(color = blanco)) // Texto en blanco
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Total Ingresos: $${String.format("%.2f", totalIngresos)}", style = MaterialTheme.typography.bodyLarge.copy(color = blanco)) // Texto en blanco
+            Text("Total Gastos: $${String.format("%.2f", totalGastos)}", style = MaterialTheme.typography.bodyLarge.copy(color = blanco)) // Texto en blanco
+            Text("Balance Total: $${String.format("%.2f", balanceTotal)}", style = MaterialTheme.typography.bodyLarge.copy(color = blanco)) // Texto en blanco
+            Text("Ratio de Ahorro: ${String.format("%.2f", ratioAhorro)}%", style = MaterialTheme.typography.bodyLarge.copy(color = blanco)) // Texto en blanco
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun TimeRangeSelector(
+    selectedRange: GraficosViewModel.RangoTiempo,
+    onRangeSelected: (GraficosViewModel.RangoTiempo) -> Unit
+) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+        GraficosViewModel.RangoTiempo.values().forEach { timeRange ->
+            Button(
+                onClick = { onRangeSelected(timeRange) },
+                colors = ButtonDefaults.buttonColors(containerColor = if (selectedRange == timeRange) naranjaClaro else Color.LightGray) // Cambiado el color del botón no seleccionado
+            ) {
+                Text(text = timeRange.name.capitalize(), color = blanco)
             }
         }
     }
 }
 
-@Composable
-fun LeyendaIngresosGastos(totalIngresos: Double, totalGastos: Double) {
-
-    val cambiarMoneda = NumberFormat.getCurrencyInstance(Locale("es", "ES"))
-
-    Column {
-        Text(
-            text = "Resumen del periodo",
-            style = MaterialTheme.typography.titleMedium,
-            color = naranjaOscuro
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = "Total ingresos: ", color = verde)
-            Text(text = cambiarMoneda.format(totalIngresos), color = verde)
-        }
-        Row (
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ){
-            Text(text = "Total gastos: ", color = rojo)
-            Text(text = cambiarMoneda.format(totalGastos), color = rojo)
-        }
-    }
-}
-
-@Composable
-fun LeyendaEvolucion(balanceInicial: Double, balanceFinal: Double) {
-
-    val cambiarMoneda = NumberFormat.getCurrencyInstance(Locale("es", "ES"))
-    val diferencia = balanceFinal - balanceInicial
-    val colorDiferencia = if(diferencia >= 0) verde else rojo
-
-    Column {
-        Text(
-            text = "Evolucion del balance",
-            style = MaterialTheme.typography.titleMedium,
-            color = naranjaOscuro
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = "Balance Inicial: ")
-            Text(text = cambiarMoneda.format(balanceInicial))
-        }
-        Row (
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ){
-            Text(text = "Balance final: ")
-            Text(text = cambiarMoneda.format(balanceFinal))
-        }
-        Row (
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ){
-            Text(text = "Diferencia: ")
-            Text(text = cambiarMoneda.format(diferencia), color = colorDiferencia)
-        }
-    }
-
-}
-
-@Composable
-fun LeyendaCategorias(categorias: Map<String, Double>) {
-
-    val cambiarMoneda = NumberFormat.getCurrencyInstance(Locale("es", "ES"))
-
-    Column {
-        Text(
-            text = "Gastos por categoria",
-            style = MaterialTheme.typography.titleMedium,
-            color = naranjaOscuro
-        )
-    }
-    Spacer(modifier = Modifier.height(8.dp))
-    categorias.forEach{ (categoria, cantidad) ->
-        Row (
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ){
-            Text(categoria)
-            Text(text = cambiarMoneda.format(cantidad))
-        }
-    }
-
-}
 

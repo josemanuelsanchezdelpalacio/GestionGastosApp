@@ -10,11 +10,6 @@ import java.time.LocalDate
 @RequiresApi(Build.VERSION_CODES.O)
 object DatePickerComponents {
 
-    /** metodo para crear un selector de fecha
-     * @param context el contexto necesario para el DatePicker
-     * @param fechaActual fecha actual que se usara como fecha inicial
-     * @param onFechaSeleccionada lambda que se ejecuta cuando el usuario selecciona una nueva fecha
-     * **/
     fun showDatePicker(context: Context, fechaActual: LocalDate, onFechaSeleccionada: (LocalDate) -> Unit) {
 
         //obtengo el año, mes y dia actuales

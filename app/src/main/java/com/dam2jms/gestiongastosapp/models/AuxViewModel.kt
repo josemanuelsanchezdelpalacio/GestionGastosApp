@@ -1,108 +1,92 @@
 package com.dam2jms.gestiongastosapp.models
 
-import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Build
+import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.ReportGmailerrorred
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
+import com.dam2jms.gestiongastosapp.states.TransactionUiState
 import com.dam2jms.gestiongastosapp.states.UiState
-import com.dam2jms.gestiongastosapp.ui.theme.blanco
-import com.dam2jms.gestiongastosapp.ui.theme.naranjaOscuro
+import com.dam2jms.gestiongastosapp.ui.theme.colorFondo
+import com.dam2jms.gestiongastosapp.ui.theme.grisClaro
+import com.dam2jms.gestiongastosapp.ui.theme.naranjaClaro
+import com.dam2jms.gestiongastosapp.utils.FireStoreUtil
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.O)
-class AuxViewModel: ViewModel() {
+class AuxViewModel() : ViewModel() {
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    private val fireStoreUtil: FireStoreUtil = FireStoreUtil
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 
     fun onChange(email: String, password: String) {
         _uiState.update { it.copy(email = email, password = password) }
     }
 
     fun visibilidadPassword() {
-        _uiState.value = _uiState.value.copy(visibilidadPasssword = !uiState.value.visibilidadPasssword)
+        _uiState.update { it.copy(visibilidadPasssword = !_uiState.value.visibilidadPasssword) }
     }
 
-    fun setScreenActual(screen: AppScreen) {
-        _uiState.update { it.copy(screenActual = screen) }
+    fun actualizarTransaccion(ingresos: List<TransactionUiState>, gastos: List<TransactionUiState>) {
+        _uiState.update { it.copy(ingresos = ingresos, gastos = gastos) }
     }
 
-    @SuppressLint("StateFlowValueCalledInComposition")
-    @Composable
-    fun bottomAppBar(navController: NavController) {
-        BottomAppBar(
-            containerColor = naranjaOscuro,
-            contentColor = blanco
-        ) {
-            NavigationBarItem(
-                icon = { Icon(Icons.Filled.ReportGmailerrorred, "Graficos") },
-                label = { Text("Graficos") },
-                selected = uiState.value.screenActual == AppScreen.CalculadoraScreen,
-                onClick = {
-                    navController.navigate(AppScreen.GraficosScreen.route)
-                    setScreenActual(AppScreen.GraficosScreen)
+    /**metodo para leer todas las transacciones en firestore y las categoriza en ingresos y gastos*/
+    fun leerTransacciones(context: Context) {
+
+        FireStoreUtil.obtenerTransacciones(
+            onSuccess = { transacciones ->
+                //filtro las transacciones segun el tipo
+                val ingresos = transacciones.filter { it.tipo == "ingreso" }
+                val gastos = transacciones.filter { it.tipo == "gasto" }
+
+                //actualizo la UI con las listas de ingresos y gastos
+                _uiState.update { it.copy(ingresos = ingresos, gastos = gastos) }
+            },
+            onFailure = { exception ->
+                Toast.makeText(context, "Error al leer las transacciones: ${exception.message}", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    fun eliminarTransaccionExistente(tipo: String, transaccionId: String, context: Context) {
+
+        auth.currentUser?.uid?.let { userId ->
+            fireStoreUtil.eliminarTransaccion(
+                tipo = tipo,
+                transaccionId = transaccionId,
+                userId = userId,
+                onSuccess = {
+                    Toast.makeText(context, "Transacción eliminada correctamente", Toast.LENGTH_SHORT).show()
+                    leerTransacciones(context)
+                },
+                onFailure = { exception ->
+                    Toast.makeText(context, "Error al eliminar la transaccion: ${exception.message}", Toast.LENGTH_SHORT).show()
                 }
             )
-            NavigationBarItem(
-                icon = { Icon(Icons.Filled.Home, "Inicio") },
-                label = { Text("Inicio") },
-                selected = uiState.value.screenActual == AppScreen.HomeScreen,
-                onClick = {
-                    navController.navigate(AppScreen.HomeScreen.route) {
-                        popUpTo(AppScreen.HomeScreen.route) { inclusive = true }
-                    }
-                    setScreenActual(AppScreen.HomeScreen)
-                }
-            )
-            NavigationBarItem(
-                icon = { Icon(Icons.Filled.List, "Transacciones") },
-                label = { Text("Transacciones") },
-                selected = uiState.value.screenActual == AppScreen.TransactionScreen,
-                onClick = {
-                    val currentDate = LocalDate.now().format(DateTimeFormatter.ISO_DATE)
-                    navController.navigate(AppScreen.TransactionScreen.createRoute(currentDate))
-                    setScreenActual(AppScreen.TransactionScreen)
-                }
-            )
-            NavigationBarItem(
-                icon = { Icon(Icons.Filled.History, "Historial") },
-                label = { Text("Historial") },
-                selected = uiState.value.screenActual == AppScreen.HistoryScreen,
-                onClick = {
-                    navController.navigate(AppScreen.HistoryScreen.route)
-                    setScreenActual(AppScreen.HistoryScreen)
-                }
-            )
-            NavigationBarItem(
-                icon = { Icon(Icons.Filled.Calculate, "Calculadora") },
-                label = { Text("Calculadora") },
-                selected = uiState.value.screenActual == AppScreen.CalculadoraScreen,
-                onClick = {
-                    navController.navigate(AppScreen.CalculadoraScreen.route)
-                    setScreenActual(AppScreen.CalculadoraScreen)
-                }
-            )
-        }
+        } ?:
+        Toast.makeText(context, "No se encontró el usuario", Toast.LENGTH_SHORT).show()
     }
 }
-
 
 

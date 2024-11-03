@@ -34,9 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
-import com.dam2jms.gestiongastosapp.components.ItemComponents.obtenerIconoCategoria
 import com.dam2jms.gestiongastosapp.data.Categoria
-import com.dam2jms.gestiongastosapp.states.TransactionState
+import com.dam2jms.gestiongastosapp.states.TransactionUiState
 import com.dam2jms.gestiongastosapp.states.UiState
 import com.dam2jms.gestiongastosapp.ui.theme.naranjaClaro
 import com.dam2jms.gestiongastosapp.utils.FireStoreUtil
@@ -45,14 +44,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+@RequiresApi(Build.VERSION_CODES.O)
 class EditTransactionViewModel : ViewModel() {
+
+    //para controlar el estado de la UI
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    fun cargarTransaccion(transactionId: String) {
+    /** metodo para cargar una transaccion desde firestore usando su ID y actualizo la UI*/
+    fun cargarTransaccion(transaccionId: String, context: Context) {
+
         FireStoreUtil.obtenerTransacciones(
             onSuccess = { transacciones ->
-                val transaccion = transacciones.find { it.id == transactionId }
+                val transaccion = transacciones.find { it.id == transaccionId }
                 transaccion?.let { transaction ->
                     _uiState.update { currentState ->
                         currentState.copy(
@@ -62,13 +66,19 @@ class EditTransactionViewModel : ViewModel() {
                             fechaTransaccion = transaction.fecha
                         )
                     }
+                } ?: run {
+                    Toast.makeText(context, "Transaccion no encontrada", Toast.LENGTH_SHORT).show()
                 }
             },
-            onFailure = { /* Handle error */ }
+            onFailure = { exception ->
+                Toast.makeText(context, "Error al cargar la transaccion: ${exception.message}", Toast.LENGTH_SHORT).show()
+            }
         )
     }
 
+    /** metodo para actualizar los datos de la transaccion en la UI UI*/
     fun actualizarDatosTransaccion(cantidad: String, categoria: String, tipo: String, fecha: String) {
+
         _uiState.update { currentState ->
             currentState.copy(
                 cantidad = cantidad.toDoubleOrNull() ?: currentState.cantidad,
@@ -79,31 +89,23 @@ class EditTransactionViewModel : ViewModel() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun editarTransaccion(transaccion: TransactionState, context: Context) {
+    /** metodo para editar una transacción en firestore */
+    fun editarTransaccion(transaccion: TransactionUiState, context: Context) {
+
+        //nombre de la coleccion
         val nombreColeccion = if (transaccion.tipo == "ingreso") "ingresos" else "gastos"
 
         FireStoreUtil.editarTransaccion(
             coleccion = nombreColeccion,
             transaccion = transaccion,
             onSuccess = {
-                Toast.makeText(context, "${transaccion.tipo.capitalize()} editado con éxito", Toast.LENGTH_SHORT).show()
-                leerTransacciones()
+                Toast.makeText(context, "${transaccion.tipo.capitalize()} editado correctamente", Toast.LENGTH_SHORT).show()
+                AuxViewModel().leerTransacciones(context)
             },
             onFailure = { exception ->
                 Toast.makeText(context, "Error al editar el ${transaccion.tipo}: ${exception.message}", Toast.LENGTH_SHORT).show()
             }
         )
     }
-
-    fun leerTransacciones() {
-        FireStoreUtil.obtenerTransacciones(
-            onSuccess = { transacciones ->
-                val ingresos = transacciones.filter { it.tipo == "ingreso" }
-                val gastos = transacciones.filter { it.tipo == "gasto" }
-                _uiState.update { it.copy(ingresos = ingresos, gastos = gastos) }
-            },
-            onFailure = { /* Manejo de errores */ }
-        )
-    }
 }
+

@@ -1,10 +1,11 @@
-package com.dam2jms.gestiongastosapp.models
-
+import android.content.Context
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dam2jms.gestiongastosapp.models.MonedasViewModel
 import com.dam2jms.gestiongastosapp.states.UiState
 import com.dam2jms.gestiongastosapp.utils.FireStoreUtil
 import com.google.firebase.auth.ktx.auth
@@ -16,16 +17,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.Month
-import java.time.YearMonth
+import java.time.temporal.ChronoUnit
 
 @RequiresApi(Build.VERSION_CODES.O)
 class HomeViewModel : ViewModel() {
+
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-    private val db = Firebase.firestore
 
-    private val currencyViewModel = CurrencyViewModel()
+    private val db = Firebase.firestore
+    private val monedasViewModel = MonedasViewModel()
 
     init {
         leerTransacciones()
@@ -41,12 +42,13 @@ class HomeViewModel : ViewModel() {
                     currentState.copy(
                         ingresos = ingresos,
                         gastos = gastos,
-                        transaccionesRecientes = transacciones.sortedByDescending { it.fecha }.take(5)
+                        transaccionesRecientes = transacciones.sortedByDescending { it.fecha }.take(10)
                     )
                 }
                 actualizarBalances()
-                actualizarGastosPorCategoria()
-                actualizarConsejosFinancieros()
+                actualizarIngresosGastosDiarios()
+                actualizarIngresosGastosMensuales()
+                actualizarIngresosGastosAnuales()
             },
             onFailure = { e ->
                 Log.e("HomeViewModel", "Error al leer transacciones: ${e.message}")
@@ -54,47 +56,216 @@ class HomeViewModel : ViewModel() {
         )
     }
 
+    private fun cargarMetaFinanciera() {
+        val userId = Firebase.auth.currentUser?.uid ?: return
+        db.collection("users").document(userId).get()
+            .addOnSuccessListener { document ->
+                if (document != null) {
+                    val metaFinanciera = document.getDouble("metaFinanciera") ?: 0.0
+                    val fechaMeta = document.getString("fechaMeta")?.let { LocalDate.parse(it) }
+                    val metaId = document.getString("financialGoalId") ?: ""
+
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            objetivoFinanciero = metaFinanciera,
+                            fechaObjetivo = fechaMeta,
+                            idObjetivoFinanciero = metaId
+                        )
+                    }
+                    establecerFechaMeta(fechaMeta ?: LocalDate.now())
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("HomeViewModel", "Error al cargar la meta financiera: ${e.message}")
+            }
+    }
+
     private fun actualizarBalances() {
-        val currentState = _uiState.value
-        val hoy = LocalDate.now()
-        val inicioMes = YearMonth.now().atDay(1)
-        val ingresosDiarios = currentState.ingresos.filter { it.fecha == hoy.toString() }.sumOf { it.cantidad }
-        val gastosDiarios = currentState.gastos.filter { it.fecha == hoy.toString() }.sumOf { it.cantidad }
-        val ingresosMensuales = currentState.ingresos.filter { LocalDate.parse(it.fecha).isAfter(inicioMes.minusDays(1)) }.sumOf { it.cantidad }
-        val gastosMensuales = currentState.gastos.filter { LocalDate.parse(it.fecha).isAfter(inicioMes.minusDays(1)) }.sumOf { it.cantidad }
-        val balanceTotal = ingresosMensuales - gastosMensuales
-        val ahorrosDiarios = ingresosDiarios - gastosDiarios
-        val ahorrosMensuales = ingresosMensuales - gastosMensuales
-        val promedioGastoDiario = if (hoy.dayOfMonth > 0) gastosMensuales / hoy.dayOfMonth else 0.0
-        val tasaAhorro = if (ingresosMensuales > 0) (ahorrosMensuales / ingresosMensuales) * 100 else 0.0
+        val ingresosTotales = _uiState.value.ingresos.sumOf { it.cantidad }
+        val gastosTotales = _uiState.value.gastos.sumOf { it.cantidad }
+        val balanceTotal = ingresosTotales - gastosTotales
+        val ahorroTotal = ingresosTotales - gastosTotales
 
         _uiState.update {
             it.copy(
-                ingresosDiarios = ingresosDiarios,
-                gastosDiarios = gastosDiarios,
-                ingresosMensuales = ingresosMensuales,
-                gastosMensuales = gastosMensuales,
                 balanceTotal = balanceTotal,
-                ahorrosDiarios = ahorrosDiarios,
-                ahorrosMensuales = ahorrosMensuales,
-                promedioGastoDiario = promedioGastoDiario,
-                tasaAhorro = tasaAhorro
+                ahorrosTotales = ahorroTotal,
+                progresoMeta = calculateGoalProgress()
             )
         }
     }
 
-    private fun actualizarGastosPorCategoria() {
-        val gastosPorCategoria = _uiState.value.gastos
-            .groupBy { it.categoria }
-            .mapValues { (_, transacciones) -> transacciones.sumOf { it.cantidad } }
-        _uiState.update { it.copy(gastosPorCategoria = gastosPorCategoria) }
+    private fun actualizarIngresosGastosDiarios() {
+        val hoy = LocalDate.now()
+        val ingresosDiarios = _uiState.value.ingresos
+            .filter { LocalDate.parse(it.fecha) == hoy }
+            .sumOf { it.cantidad }
+        val gastosDiarios = _uiState.value.gastos
+            .filter { LocalDate.parse(it.fecha) == hoy }
+            .sumOf { it.cantidad }
+
+        _uiState.update {
+            it.copy(
+                ingresosDiarios = ingresosDiarios,
+                gastosDiarios = gastosDiarios
+            )
+        }
     }
+
+    private fun actualizarIngresosGastosMensuales() {
+        val hoy = LocalDate.now()
+        val ingresosMensuales = _uiState.value.ingresos
+            .filter { LocalDate.parse(it.fecha).month == hoy.month }
+            .sumOf { it.cantidad }
+        val gastosMensuales = _uiState.value.gastos
+            .filter { LocalDate.parse(it.fecha).month == hoy.month }
+            .sumOf { it.cantidad }
+
+        _uiState.update {
+            it.copy(
+                ingresosMensuales = ingresosMensuales,
+                gastosMensuales = gastosMensuales
+            )
+        }
+    }
+
+    private fun actualizarIngresosGastosAnuales() {
+        val hoy = LocalDate.now()
+        val ingresosAnuales = _uiState.value.ingresos
+            .filter { LocalDate.parse(it.fecha).year == hoy.year }
+            .sumOf { it.cantidad }
+        val gastosAnuales = _uiState.value.gastos
+            .filter { LocalDate.parse(it.fecha).year == hoy.year }
+            .sumOf { it.cantidad }
+
+        _uiState.update {
+            it.copy(
+                ingresosAnuales = ingresosAnuales,
+                gastosAnuales = gastosAnuales
+            )
+        }
+    }
+
+    private fun calculateGoalProgress(): Double {
+        val balanceTotal = _uiState.value.balanceTotal
+        val metaFinanciera = _uiState.value.objetivoFinanciero
+
+        return if (metaFinanciera > 0) {
+            ((balanceTotal / metaFinanciera) * 100).coerceIn(0.0, 100.0)
+        } else {
+            0.0
+        }
+    }
+
+    fun establecerMetaFinanciera(meta: Double, fechaMeta: LocalDate) {
+        _uiState.update {
+            it.copy(
+                objetivoFinanciero = meta,
+                fechaObjetivo = fechaMeta,
+                diasHastaMeta = ChronoUnit.DAYS.between(LocalDate.now(), fechaMeta).toInt()
+            )
+        }
+        actualizarBalances()
+        guardarMetaEnFirebase(meta, fechaMeta)
+    }
+
+    private fun guardarMetaEnFirebase(meta: Double, fechaMeta: LocalDate) {
+        val userId = Firebase.auth.currentUser?.uid ?: return
+        db.collection("users").document(userId)
+            .update(mapOf("metaFinanciera" to meta, "fechaMeta" to fechaMeta.toString()))
+            .addOnFailureListener { e ->
+                Log.e("HomeViewModel", "Error al guardar meta en Firebase: ${e.message}")
+            }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun establecerFechaMeta(fechaMeta: LocalDate) {
+        val metaFinanciera = _uiState.value.objetivoFinanciero
+        if (metaFinanciera <= 0) {
+            _uiState.update {
+                it.copy(
+                    fechaObjetivo = fechaMeta,
+                    diasHastaMeta = -1,
+                    estadoMeta = "Por favor, establece primero una meta financiera"
+                )
+            }
+            return
+        }
+
+        val diasDiferencia = ChronoUnit.DAYS.between(LocalDate.now(), fechaMeta).toInt()
+        if (diasDiferencia <= 0) {
+            _uiState.update {
+                it.copy(
+                    fechaObjetivo = fechaMeta,
+                    diasHastaMeta = -1,
+                    estadoMeta = "La fecha meta debe ser posterior a hoy"
+                )
+            }
+            return
+        }
+
+        val ahorroNecesarioTotal = metaFinanciera - _uiState.value.balanceTotal
+        val ahorroDiarioNecesario = ahorroNecesarioTotal / diasDiferencia
+
+        val estadoMeta = when {
+            ahorroNecesarioTotal <= 0 -> "¡Ya has alcanzado tu meta financiera!"
+            else -> "Debes ahorrar ${String.format("%.2f", ahorroDiarioNecesario)} diarios para alcanzar tu meta"
+        }
+
+        _uiState.update {
+            it.copy(
+                fechaObjetivo = fechaMeta,
+                diasHastaMeta = diasDiferencia,
+                ahorroDiarioNecesario = ahorroDiarioNecesario,
+                progresoMeta = calculateGoalProgress(),
+                estadoMeta = estadoMeta
+            )
+        }
+        actualizarMetaEnFirebase(fechaMeta)
+    }
+
+    private fun actualizarMetaEnFirebase(fechaMeta: LocalDate) {
+        val userId = Firebase.auth.currentUser?.uid ?: return
+        db.collection("users").document(userId)
+            .update(
+                mapOf(
+                    "fechaMeta" to fechaMeta.toString(),
+                    "diasHastaMeta" to _uiState.value.diasHastaMeta,
+                    "ahorroDiarioNecesario" to _uiState.value.ahorroDiarioNecesario,
+                    "progresoMeta" to _uiState.value.progresoMeta
+                )
+            )
+            .addOnFailureListener { e ->
+                Log.e("HomeViewModel", "Error al actualizar la meta en Firebase: ${e.message}")
+            }
+    }
+
+    fun eliminarMeta(context: Context) {
+        val userId = Firebase.auth.currentUser?.uid ?: return
+        db.collection("users").document(userId)
+            .update(mapOf("metaFinanciera" to 0.0, "fechaMeta" to null))
+            .addOnSuccessListener {
+                _uiState.update {
+                    it.copy(
+                        objetivoFinanciero = 0.0,
+                        fechaObjetivo = null,
+                        diasHastaMeta = -1,
+                        estadoMeta = "Meta eliminada",
+                        ahorroDiarioNecesario = 0.0
+                    )
+                }
+                Toast.makeText(context, "Meta eliminada con éxito", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(context, "Error al eliminar la meta: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
 
     fun actualizarMoneda(nuevaMoneda: String) {
         viewModelScope.launch {
-            val monedaActual = _uiState.value.monedaActual
             val tasaCambio = try {
-                currencyViewModel.obtenerTasaCambio(monedaActual, nuevaMoneda)
+                monedasViewModel.obtenerTasaCambio(_uiState.value.monedaActual, nuevaMoneda)
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Error al obtener tasa de cambio: ${e.message}")
                 1.0
@@ -102,75 +273,18 @@ class HomeViewModel : ViewModel() {
 
             _uiState.update { currentState ->
                 currentState.copy(
-                    ingresosDiarios = (currentState.ingresosDiarios * tasaCambio),
-                    gastosDiarios = (currentState.gastosDiarios * tasaCambio),
-                    ingresosMensuales = (currentState.ingresosMensuales * tasaCambio),
-                    gastosMensuales = (currentState.gastosMensuales * tasaCambio),
-                    ahorrosDiarios = (currentState.ahorrosDiarios * tasaCambio),
-                    ahorrosMensuales = (currentState.ahorrosMensuales * tasaCambio),
-                    balanceTotal = (currentState.balanceTotal * tasaCambio),
+                    ingresosDiarios = currentState.ingresosDiarios * tasaCambio,
+                    gastosDiarios = currentState.gastosDiarios * tasaCambio,
+                    ingresosMensuales = currentState.ingresosMensuales * tasaCambio,
+                    gastosMensuales = currentState.gastosMensuales * tasaCambio,
+                    ingresosAnuales = currentState.ingresosAnuales * tasaCambio,
+                    gastosAnuales = currentState.gastosAnuales * tasaCambio,
+                    balanceTotal = currentState.balanceTotal * tasaCambio,
+                    objetivoFinanciero = currentState.objetivoFinanciero * tasaCambio,
                     monedaActual = nuevaMoneda
                 )
             }
-            actualizarGastosPorCategoria(tasaCambio)
         }
-    }
-
-    private fun actualizarGastosPorCategoria(tasaCambio: Double) {
-        val gastosPorCategoria = _uiState.value.gastosPorCategoria.mapValues { (_, valor) ->
-            valor * tasaCambio
-        }
-        _uiState.update { it.copy(gastosPorCategoria = gastosPorCategoria) }
-    }
-
-    fun obtenerCategoriaMasGastada(): Pair<String, Double>? {
-        return _uiState.value.gastosPorCategoria.maxByOrNull { it.value }?.toPair()
-    }
-
-    fun calcularPorcentajeAhorro(): Double {
-        val ingresosMensuales = _uiState.value.ingresosMensuales
-        val ahorrosMensuales = _uiState.value.ahorrosMensuales
-        return if (ingresosMensuales > 0) (ahorrosMensuales / ingresosMensuales) * 100 else 0.0
-    }
-
-    fun actualizarConsejosFinancieros() {
-        val consejos = mutableListOf<String>()
-        val tasaAhorro = calcularPorcentajeAhorro()
-
-        if (tasaAhorro < 20) {
-            consejos.add("Intenta aumentar tu tasa de ahorro al 20% de tus ingresos.")
-        }
-
-        val categoriaMasGastada = obtenerCategoriaMasGastada()
-        categoriaMasGastada?.let { (categoria, gasto) ->
-            consejos.add("Considera reducir tus gastos en $categoria, que es tu categoría de mayor gasto.")
-        }
-
-        if (_uiState.value.gastosMensuales > _uiState.value.ingresosMensuales) {
-            consejos.add("Tus gastos superan tus ingresos. Busca formas de reducir gastos o aumentar ingresos.")
-        }
-
-        _uiState.update { it.copy(consejosFinancieros = consejos) }
-    }
-
-    private fun cargarMetaFinanciera() {
-        val userId = Firebase.auth.currentUser?.uid ?: return
-        db.collection("users").document(userId).get()
-            .addOnSuccessListener { document ->
-                val meta = document.getDouble("metaFinanciera") ?: 0.0
-                val ahorrosMensuales = _uiState.value.ahorrosMensuales
-                val mesesHastaMeta = if (ahorrosMensuales > 0) (meta / ahorrosMensuales).toInt() else Int.MAX_VALUE
-                val diasHastaMeta = mesesHastaMeta * 30 // Aproximación
-
-                _uiState.update {
-                    it.copy(
-                        financialGoal = meta,
-                        diasHastaMeta = diasHastaMeta
-                    )
-                }
-            }
-            .addOnFailureListener { e ->
-                Log.e("HomeViewModel", "Error al leer la meta financiera: ${e.message}")
-            }
     }
 }
+

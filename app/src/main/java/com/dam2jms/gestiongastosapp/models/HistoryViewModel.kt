@@ -15,18 +15,16 @@ import java.time.LocalDate
 @RequiresApi(Build.VERSION_CODES.O)
 class HistoryViewModel: ViewModel() {
 
+    //para controlar el estado de la UI
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState
 
-    /**inicializa el viewmodel cargando las transacciones **/
+    /**inicializo el viewmodel cargando las transacciones **/
     init {
         cargarTransacciones()
     }
 
-    /**
-     * metodo para obtener las transacciones de firestore y actualizo el estado de la interfaz
-     * Filtra las transacciones en ingresos y gastos
-     * @return actualizo la interfaz con las transacciones filtradas**/
+    /*** metodo para obtener las transacciones de firestore y actualizo la UI*/
     private fun cargarTransacciones(){
 
         viewModelScope.launch {
@@ -45,12 +43,7 @@ class HistoryViewModel: ViewModel() {
         }
     }
 
-    /**
-     * metodo para filtrar las transacciones segun los criterios proporcionados, como tipo, fecha y categoria
-     * @param buscarTipo Tipo de filtro (ya sea "fecha" o "categoria")
-     * @param tipo Tipo de transaccion ("ingreso o "gasto")
-     * @param buscarFecha Fecha para filtrar las transacciones
-     * @param buscarCategoria categoria para filtrar las transacciones**/
+    /**metodo para filtrar las transacciones segun los criterios proporcionados, como tipo, fecha y categoria*/
     fun buscarTransacciones(buscarTipo: String, tipo: String, buscarFecha: LocalDate, buscarCategoria: String){
 
         //combino ingresos y gastos en una sola lista
@@ -77,4 +70,5 @@ class HistoryViewModel: ViewModel() {
     }
 
 }
+
 

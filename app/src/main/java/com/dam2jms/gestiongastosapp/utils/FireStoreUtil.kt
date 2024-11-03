@@ -1,6 +1,6 @@
 package com.dam2jms.gestiongastosapp.utils
 
-import com.dam2jms.gestiongastosapp.states.TransactionState
+import com.dam2jms.gestiongastosapp.states.TransactionUiState
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
@@ -14,7 +14,7 @@ object FireStoreUtil {
      * @param onSuccess Función a ejecutar en caso de éxito con la lista de transacciones.
      * @param onFailure Función a ejecutar en caso de error.
      */
-    fun obtenerTransacciones(onSuccess: (List<TransactionState>) -> Unit, onFailure: (Exception) -> Unit) {
+    fun obtenerTransacciones(onSuccess: (List<TransactionUiState>) -> Unit, onFailure: (Exception) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid ?: return
 
         db.collection("users")
@@ -23,7 +23,7 @@ object FireStoreUtil {
             .get()
             .addOnSuccessListener { ingresosSnapshot ->
                 val ingresos = ingresosSnapshot.documents.mapNotNull { document ->
-                    val transaccion = document.toObject(TransactionState::class.java)
+                    val transaccion = document.toObject(TransactionUiState::class.java)
                     transaccion?.apply { id = document.id }
                 }
                 db.collection("users")
@@ -32,7 +32,7 @@ object FireStoreUtil {
                     .get()
                     .addOnSuccessListener { gastosSnapshot ->
                         val gastos = gastosSnapshot.documents.mapNotNull { document ->
-                            val transaccion = document.toObject(TransactionState::class.java)
+                            val transaccion = document.toObject(TransactionUiState::class.java)
                             transaccion?.apply { id = document.id }
                         }
                         onSuccess(ingresos + gastos)
@@ -49,7 +49,7 @@ object FireStoreUtil {
      * @param onSuccess Función a ejecutar en caso de éxito.
      * @param onFailure Función a ejecutar en caso de error.
      */
-    fun añadirTransaccion(coleccion: String, transaccion: TransactionState, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+    fun añadirTransaccion(coleccion: String, transaccion: TransactionUiState, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid ?: return
 
         db.collection("users")
@@ -84,7 +84,7 @@ object FireStoreUtil {
             .addOnFailureListener { onFailure(it) }
     }
 
-    fun editarTransaccion(coleccion: String, transaccion: TransactionState, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+    fun editarTransaccion(coleccion: String, transaccion: TransactionUiState, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid ?: return
 
         if (transaccion.id.isEmpty()) {
@@ -104,6 +104,38 @@ object FireStoreUtil {
                 onFailure(exception)
             }
     }
+
+    fun eliminarTransaccion(tipo: String, transaccionId: String, userId: String, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val transactionRef = FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(userId)
+            .collection(tipo)
+            .document(transaccionId)
+
+        transactionRef.delete()
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { exception -> onFailure(exception) }
+    }
+
+    /**
+     * Método para eliminar una meta específica de Firestore.
+     *
+     * @param metaId ID de la meta a eliminar
+     * @param onSuccess Función a ejecutar en caso de éxito
+     * @param onFailure Función a ejecutar en caso de error
+     */
+    fun eliminarMeta(metaId: String, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val userId = Firebase.auth.currentUser?.uid ?: return
+
+        db.collection("users")
+            .document(userId)
+            .collection("metas")
+            .document(metaId)
+            .delete()
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
+    }
+
 }
 
 

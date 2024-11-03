@@ -20,18 +20,21 @@ import kotlinx.coroutines.tasks.await
 @RequiresApi(Build.VERSION_CODES.O)
 class LoginViewModel : ViewModel() {
 
+    //para controlar el estado de la UI
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    /**metodo para iniciar sesion directamente con el correo que escriba el usuario**/
     internal suspend fun iniciarSesionConCorreo(email: String, password: String, auth: FirebaseAuth, context: Context, navController: NavController) {
 
+        //validaciones para comprobar que el email y la password tengan el formato correcto para firebase
         if(!Validaciones.validarCredenciales(email, password, context)){
             return
         }
 
-
         if (email.isNotEmpty() && password.isNotEmpty()) {
             try {
+                //llamo al metodo de firebaseauth para iniciar sesion y si es correcto navega a homescreen
                 auth.signInWithEmailAndPassword(email, password).await()
                 Toast.makeText(context, "Inicio de sesion correcto", Toast.LENGTH_SHORT).show()
                 navController.navigate(AppScreen.HomeScreen.route)
@@ -43,23 +46,49 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    internal suspend fun registrarUsuarioConGoogle(email: String, password: String, cuenta: GoogleSignInAccount, context: Context, navController: NavController) {
+    /**metodo para inciiar sesion con la seleccion de cuentas de google**/
+    internal suspend fun iniciarSesionConGoogle(cuenta: GoogleSignInAccount, context: Context, navController: NavController) {
 
-        if(!Validaciones.validarCredenciales(email, password, context)){
+        //compruebo que el id del usuario exista
+        val idToken = cuenta.idToken ?: run {
+            Toast.makeText(context, "Token de ID no disponible", Toast.LENGTH_SHORT).show()
             return
         }
 
-        cuenta.idToken?.let {
-            val credencial = GoogleAuthProvider.getCredential(it, null)
-            val auth = FirebaseAuth.getInstance()
+        //obtengo las credenciales a traves del id
+        val credencial = GoogleAuthProvider.getCredential(idToken, null)
 
+        val auth = FirebaseAuth.getInstance()
+
+        try {
+            //inicio sesion usando las credenciales obtenidas y navega a homescreen si son correctas
+            auth.signInWithCredential(credencial).await()
+            Toast.makeText(context, "Inicio de sesion con Google correcto", Toast.LENGTH_SHORT).show()
+            navController.navigate(AppScreen.HomeScreen.route)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error al iniciar sesion", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**metodo para recuperar la contraseña a traves del correo que introduzcal el usuario**/
+    internal suspend fun recuperarContraseña(email: String, context: Context) {
+
+        //validaciones para comprobar que el email tenga el formato correcto
+        if(!Validaciones.validarEmail(email)){
+            return
+        }
+
+        if (email.isNotEmpty()) {
             try {
-                auth.signInWithCredential(credencial).await()
-                Toast.makeText(context, "Inicio de sesion con Google correcto", Toast.LENGTH_SHORT).show()
-                navController.navigate(AppScreen.HomeScreen.route)
+                //envio un correo de recuperacion a traves del email introducido por el usuario
+                val auth = FirebaseAuth.getInstance()
+                auth.sendPasswordResetEmail(email).await()
+                Toast.makeText(context, "Se ha enviado un correo para recuperar la contraseña", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                Toast.makeText(context, "Error al intentar iniciar sesion con Google: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Error al enviar el correo: ${e.message}", Toast.LENGTH_SHORT).show()
             }
+        } else {
+            Toast.makeText(context, "Introduce un correo electronico valido", Toast.LENGTH_SHORT).show()
         }
     }
 }

@@ -1,150 +1,157 @@
-package com.dam2jms.gestiongastosapp.models
-
-import android.annotation.SuppressLint
-import android.content.ContentValues.TAG
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dam2jms.gestiongastosapp.states.GraficosUiState
-import com.dam2jms.gestiongastosapp.states.TransactionState
+import com.dam2jms.gestiongastosapp.states.TransactionUiState
 import com.dam2jms.gestiongastosapp.utils.FireStoreUtil
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.YearMonth
-import kotlin.random.Random
+import java.time.temporal.ChronoUnit
 
 @RequiresApi(Build.VERSION_CODES.O)
 class GraficosViewModel : ViewModel() {
 
+    //para controlar el estado de la UI
     private val _uiState = MutableStateFlow(GraficosUiState())
     val uiState: StateFlow<GraficosUiState> = _uiState.asStateFlow()
 
-    private val firestore = FirebaseFirestore.getInstance()
-    private val id_usuarioActual: String?
-        get() = Firebase.auth.currentUser?.uid
-
-    init {
-        viewModelScope.launch {
-            cargarDatosFinancieros()
-        }
+    //defino los rangos de tiempo disponibles para los graficos
+    enum class RangoTiempo {
+        WEEK, MONTH, QUARTER, YEAR
     }
 
-    private fun cargarDatosFinancieros(){
-        id_usuarioActual?.let { idUsuario ->
+    //lista para guardar todas las transacciones
+    private var allTransacciones: List<TransactionUiState> = emptyList()
+
+    //rango de tiempo actual seleccionado para los graficos
+    private var tiempoRangoActual: RangoTiempo = RangoTiempo.MONTH
+
+    //inicializo el viewmodel y cargo las transacciones
+    init {
+        RecuperarTransacciones()
+    }
+
+    /**metodo para recuperar las transacciones desde firestore*/
+    fun RecuperarTransacciones() {
+        viewModelScope.launch {
             FireStoreUtil.obtenerTransacciones(
                 onSuccess = { transacciones ->
-                    procesarTransacciones(transacciones)
+                    allTransacciones = transacciones
+                    procesarTransacciones(tiempoRangoActual)
                 },
-                onFailure = { exception ->
-                    Log.e(TAG, "Error al cargar las transacciones: ${exception}")
-                }
+                onFailure = { exception -> }
             )
         }
     }
 
-    private fun procesarTransacciones(transacciones: List<TransactionState>) {
-        try {
-            val ingresos = transacciones.filter { it.tipo == "ingreso" }
-            val gastos = transacciones.filter { it.tipo == "gasto" }
+    /**metodo para establecer el rango de tiempo para los graficos y procesa las transacciones*/
+    fun establecerRangoGraficos(rangoTiempo: RangoTiempo) {
+        tiempoRangoActual = rangoTiempo
+        procesarTransacciones(rangoTiempo)
+    }
 
-            val totalIngresos = ingresos.sumOf { it.cantidad }
-            val totalGastos = gastos.sumOf { it.cantidad }
-            val balanceTotal = totalIngresos - totalGastos
+    /**metodo para filtrar y procesas las transacciones en base al tiempo seleccionado*/
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun procesarTransacciones(rangoTiempo: RangoTiempo) {
 
-            // Agrupar por día en lugar de por mes
-            val ingresosDiarios = obtenerTransaccionesDiarias(ingresos)
-            val gastosDiarios = obtenerTransaccionesDiarias(gastos)
+        val fechaActual = LocalDate.now()
 
-            val diasOrdenados = (ingresosDiarios.keys + gastosDiarios.keys)
-                .toSortedSet()
+        //filtro las transacciones para aplicarles el rango de tiempo
+        val transaccionesFiltradas = allTransacciones.filter { transaction ->
 
-            var balanceAcumulado = 0.0
-            val evolucionBalance = diasOrdenados.map { dia ->
-                val ingresosDia = ingresosDiarios[dia] ?: 0.0
-                val gastosDia = gastosDiarios[dia] ?: 0.0
-                balanceAcumulado += (ingresosDia - gastosDia)
-                balanceAcumulado
+            //parseo la fecha de la transaccion
+            val fechaTransaccion = LocalDate.parse(transaction.fecha)
+
+            //establezco el tiempo para cada rango
+            when (rangoTiempo) {
+                RangoTiempo.WEEK -> ChronoUnit.DAYS.between(fechaTransaccion, fechaActual) < 7
+                RangoTiempo.MONTH -> ChronoUnit.MONTHS.between(fechaTransaccion, fechaActual) < 1
+                RangoTiempo.QUARTER -> ChronoUnit.MONTHS.between(fechaTransaccion, fechaActual) < 3
+                RangoTiempo.YEAR -> ChronoUnit.YEARS.between(fechaTransaccion, fechaActual) < 1
             }
+        }
 
-            val gastosPorCategoria = gastos
-                .groupBy { it.categoria }
-                .mapValues { (_, transacciones) ->
-                    transacciones.sumOf { it.cantidad }
-                }
-                .toSortedMap()
+        //separo los ingresos y los gastos
+        val (ingresos, gastos) = transaccionesFiltradas.partition { it.tipo == "ingreso" }
 
-            _uiState.update { estadoActual ->
-                estadoActual.copy(
-                    balanceTotal = balanceTotal,
-                    totalIngresos = totalIngresos,
-                    totalGastos = totalGastos,
-                    ingresos = ingresosDiarios.values.toList(),
-                    gastos = gastosDiarios.values.toList(),
-                    fechas = diasOrdenados.toList(),
-                    evolucionBalance = evolucionBalance,
-                    gastosPorCategoria = gastosPorCategoria,
-                    balanceInicial = evolucionBalance.firstOrNull() ?: 0.0,
-                    balanceFinal = evolucionBalance.lastOrNull() ?: 0.0
-                )
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al procesar transacciones: ", e)
+        //calculo los datos de cada transaccion
+        val totalIngresos = ingresos.sumOf { it.cantidad }
+        val totalGastos = gastos.sumOf { it.cantidad }
+        val balanceTotal = totalIngresos - totalGastos
+        val ratioAhorro = if (totalIngresos > 0) (balanceTotal / totalIngresos) * 100 else 0.0
+
+        //agrupo las transacciones por categoria
+        val ingresosPorCategoria = ingresos.groupBy { it.categoria }
+            .mapValues { it.value.sumOf { transaction -> transaction.cantidad } }
+        val gastosPorCategoria = gastos.groupBy { it.categoria }
+            .mapValues { it.value.sumOf { transaction -> transaction.cantidad } }
+
+        //obtengo los gastos principales
+        val gastosPrincipales = gastosPorCategoria.entries
+            .sortedByDescending { it.value }
+            .take(3)
+            .associate { it.key to it.value }
+
+        //preparo los datos para los graficos
+        val (ingresosGraf, gastosGraf, fechas) = prepararDatosGraficos(ingresos, gastos)
+        val evolucionBalance = prepararDatosBalanceEvolucion(transaccionesFiltradas)
+
+        //actualizo la UI con los nuevos datos procesados
+        _uiState.update { currentState ->
+            currentState.copy(
+                ingresos = ingresosGraf,
+                gastos = gastosGraf,
+                fechas = fechas,
+                evolucionBalance = evolucionBalance,
+                ingresosPorCategoria = ingresosPorCategoria,
+                gastosPorCategoria = gastosPorCategoria,
+                totalIngresos = totalIngresos,
+                totalGastos = totalGastos,
+                balanceTotal = balanceTotal,
+                ratioAhorro = ratioAhorro,
+                gastosPrincipales = gastosPrincipales,
+                selectedRangoTiempo = rangoTiempo
+            )
         }
     }
 
-    private fun obtenerTransaccionesDiarias(transacciones: List<TransactionState>): Map<LocalDate, Double> {
-        return transacciones
-            .groupBy {
-                LocalDate.parse(it.fecha)
-            }
-            .mapValues { (_, transaccionesDia) ->
-                transaccionesDia.sumOf { it.cantidad }
-            }
-            .toSortedMap()
+    /**metodo para preparar los datos de los graficos a partir de las listas de ingresos y gastos*/
+    private fun prepararDatosGraficos(ingresosLista: List<TransactionUiState>, gastosLista: List<TransactionUiState>): Triple<List<Double>, List<Double>, List<LocalDate>> {
+
+        //agrupo los ingresos y gastos por fecha
+        val ingresosAgrupados = ingresosLista.groupBy { LocalDate.parse(it.fecha) }
+            .mapValues { it.value.sumOf { transaccion -> transaccion.cantidad } }
+        val gastosAgrupados = gastosLista.groupBy { LocalDate.parse(it.fecha) }
+            .mapValues { it.value.sumOf { transaccion -> transaccion.cantidad } }
+
+        //obtengo las fechas y las ordenamos
+        val fechas = (ingresosAgrupados.keys + gastosAgrupados.keys).sorted()
+
+        //creo las listas de ingresos y gastos por fecha
+        val ingresos = fechas.map { dato -> ingresosAgrupados[dato] ?: 0.0 }
+        val gastos = fechas.map { dato -> gastosAgrupados[dato] ?: 0.0 }
+
+        //devuelvo los datos en una lista triple
+        return Triple(ingresos, gastos, fechas)
     }
 
-    fun actualizarMoneda(nuevaMoneda: String, tasaCambio: Double) {
+    /**metodo para preparar los datos de evolucion del balance a partir de las transacciones filtradas*/
+    private fun prepararDatosBalanceEvolucion(transacciones: List<TransactionUiState>): List<Double> {
 
-        viewModelScope.launch {
-            try{
-                _uiState.update { estadoActual ->
-                    estadoActual.copy(
-                        monedaActual = nuevaMoneda,
-                        balanceTotal = estadoActual.balanceTotal * tasaCambio,
-                        totalIngresos = estadoActual.totalIngresos * tasaCambio,
-                        totalGastos = estadoActual.totalGastos * tasaCambio,
-                        ingresos = estadoActual.ingresos.map { it * tasaCambio },
-                        gastos = estadoActual.gastos.map { it * tasaCambio },
-                        evolucionBalance = estadoActual.evolucionBalance.map { it * tasaCambio },
-                        gastosPorCategoria = estadoActual.gastosPorCategoria.mapValues { it.value * tasaCambio },
-                        balanceInicial = estadoActual.balanceInicial * tasaCambio,
-                        balanceFinal = estadoActual.balanceFinal * tasaCambio
-                    )
-                }
-            }catch (e: Exception){
-                Log.e(TAG, "Error al actualizar moneda: ", e)
-            }
+        //ordeno las transacciones por fecha
+        val transaccionesOrdenadas = transacciones.sortedBy { LocalDate.parse(it.fecha) }
+
+        //calculo los ingresos y gastos acumulados a lo largo del tiempo
+        var balanceActual = 0.0
+        return transaccionesOrdenadas.map { transaccion ->
+            balanceActual += if (transaccion.tipo == "ingreso") transaccion.cantidad else - transaccion.cantidad
+            balanceActual
         }
-    }
-
-    fun refrescarDatos(){
-        viewModelScope.launch {
-            cargarDatosFinancieros()
-        }
-    }
-
-    companion object{
-        private const val TAG = "GraficosViewModel"
     }
 }
 

@@ -1,9 +1,9 @@
 package com.dam2jms.gestiongastosapp.states
 
 data class FilaPrestamo(
-    val numeroCuota: Int,
+    val mes: Int,
     val cuota: Double,
     val interes: Double,
-    val amortizacion: Double,
-    val capitalPendiente: Double
+    val capital: Double,
+    val saldoPendiente: Double
 )

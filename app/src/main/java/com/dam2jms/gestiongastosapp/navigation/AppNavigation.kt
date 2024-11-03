@@ -1,5 +1,7 @@
 package com.dam2jms.gestiongastosapp.navigation
 
+import HomeScreen
+import HomeViewModel
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
@@ -12,12 +14,11 @@ import androidx.navigation.navArgument
 import com.dam2jms.gestiongastosapp.models.AddTransactionViewModel
 import com.dam2jms.gestiongastosapp.models.AuxViewModel
 import com.dam2jms.gestiongastosapp.models.CalculadoraViewModel
-import com.dam2jms.gestiongastosapp.models.CurrencyViewModel
+import com.dam2jms.gestiongastosapp.models.MonedasViewModel
 import com.dam2jms.gestiongastosapp.models.EditTransactionViewModel
 import com.dam2jms.gestiongastosapp.screens.GraficosScreen
 import com.dam2jms.gestiongastosapp.models.GraficosViewModel
 import com.dam2jms.gestiongastosapp.models.HistoryViewModel
-import com.dam2jms.gestiongastosapp.models.HomeViewModel
 import com.dam2jms.gestiongastosapp.models.LoginViewModel
 import com.dam2jms.gestiongastosapp.models.RegisterViewModel
 import com.dam2jms.gestiongastosapp.models.TransactionViewModel
@@ -26,7 +27,6 @@ import com.dam2jms.gestiongastosapp.screens.CalculadoraScreen
 import com.dam2jms.gestiongastosapp.screens.EditTransactionScreen
 import com.dam2jms.gestiongastosapp.screens.HistoryScreen
 import com.dam2jms.gestiongastosapp.screens.RegisterScreen
-import com.dam2jms.gestiongastosapp.screens.HomeScreen
 import com.dam2jms.gestiongastosapp.screens.LoginScreen
 import com.dam2jms.gestiongastosapp.screens.TransactionScreen
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -42,9 +42,9 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
 
-    val webClientId = "484530452726-0qsqchbvv2idp9vln7kfgebmf1gr1vhg.apps.googleusercontent.com"
+    val idFireBaseAuthUsuario = "484530452726-0qsqchbvv2idp9vln7kfgebmf1gr1vhg.apps.googleusercontent.com"
     val googleSignInOptions = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(webClientId)
+        .requestIdToken(idFireBaseAuthUsuario)
         .requestEmail()
         .build()
     val googleSignInClient = GoogleSignIn.getClient(context, googleSignInOptions)
@@ -74,7 +74,7 @@ fun AppNavigation() {
                 navController = navController,
                 homeViewModel = HomeViewModel(),
                 auxViewModel = AuxViewModel(),
-                currencyViewModel = CurrencyViewModel()
+                monedasViewModel = MonedasViewModel()
             )
         }
         composable(AppScreen.AddTransactionScreen.route) {
@@ -116,7 +116,7 @@ fun AppNavigation() {
             HistoryScreen(navController, auxViewModel = AuxViewModel(), mvvm = HistoryViewModel())
         }
         composable(AppScreen.GraficosScreen.route) {
-            GraficosScreen(navController, auxViewModel = AuxViewModel(), graficosViewModel = GraficosViewModel())
+            GraficosScreen(navController, auxViewModel = AuxViewModel(), graficosViewModel = GraficosViewModel(), monedasViewModel = MonedasViewModel())
         }
     }
 }

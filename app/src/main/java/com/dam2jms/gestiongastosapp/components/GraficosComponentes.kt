@@ -1,18 +1,38 @@
 package com.dam2jms.gestiongastosapp.components
 
-import android.graphics.Color
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.dam2jms.gestiongastosapp.data.Categoria
+import com.dam2jms.gestiongastosapp.data.CategoriaAPI
 import com.dam2jms.gestiongastosapp.ui.theme.azul
+import com.dam2jms.gestiongastosapp.ui.theme.blanco
+import com.dam2jms.gestiongastosapp.ui.theme.colorFondo
+import com.dam2jms.gestiongastosapp.ui.theme.coloresGastos
+import com.dam2jms.gestiongastosapp.ui.theme.coloresIngresos
+import com.dam2jms.gestiongastosapp.ui.theme.grisClaro
+import com.dam2jms.gestiongastosapp.ui.theme.naranjaClaro
 import com.dam2jms.gestiongastosapp.ui.theme.rojo
 import com.dam2jms.gestiongastosapp.ui.theme.verde
+import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.PieChart
@@ -35,57 +55,80 @@ import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun GraficoBarras(ingresos: List<Double>, gastos: List<Double>, fechas: List<LocalDate>, modifier: Modifier = Modifier){
+fun GraficoBarras(ingresos: List<Double>, gastos: List<Double>, fechas: List<LocalDate>) {
 
     AndroidView(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .height(300.dp)
             .padding(16.dp),
         factory = { context ->
             BarChart(context).apply {
+                //quito la descripcion por defecto
                 description.isEnabled = false
+                //quito el fondo de cuadricula
                 setDrawGridBackground(false)
+                //quito el zoom
                 setPinchZoom(false)
-                setDrawBarShadow(false)
+                //sin valores encima de las barras
                 setDrawValueAboveBar(false)
+                setBackgroundColor(colorFondo.toArgb())
 
+                //configuracion del eje X
                 xAxis.apply {
+                    //posicion en la parte inferior
                     position = XAxis.XAxisPosition.BOTTOM
+                    //sin lineas de cuadricula
                     setDrawGridLines(false)
                     granularity = 1f
                     textSize = 12f
-                    textColor = Color.BLACK
+                    textColor = blanco.toArgb()
                 }
 
+                //animacion eje X
+                animateX(1000)
+
+                //configuracion del eje Y
                 axisLeft.apply {
+                    //lineas de cuadricula en el eje Y
                     setDrawGridLines(true)
+                    //color de las lineas
+                    gridColor = naranjaClaro.toArgb()
                     textSize = 12f
-                    textColor = Color.BLACK
+                    textColor = blanco.toArgb()
+                    //dibujo la linea
                     setDrawAxisLine(true)
+                    axisLineColor = naranjaClaro.toArgb()
+                    //formateo los datos
                     valueFormatter = object : ValueFormatter(){
-                        override fun getFormattedValue(value: Float): String {
-                            return String.format("%.2f€", value)
+                        override fun getFormattedValue(valorDatos: Float): String {
+                            return String.format("%.2f€", valorDatos)
                         }
                     }
                 }
 
+                //quito el eje Y derecho
                 axisRight.isEnabled = false
 
+                //configuracion de la leyenda
                 legend.apply {
                     verticalAlignment = Legend.LegendVerticalAlignment.TOP
                     horizontalAlignment = Legend.LegendHorizontalAlignment.RIGHT
                     orientation = Legend.LegendOrientation.HORIZONTAL
+                    //dibujo la leyenda fuera del grafico
                     setDrawInside(false)
                     textSize = 12f
                     formSize = 12f
-                    xEntrySpace = 12f
+                    textColor = blanco.toArgb()
                 }
 
+                //animacion del eje Y
                 animateY(1000)
             }
         },
         update = { grafico ->
+
+            //mapeo los ingresos y gastos a entradas para el grafico
             val entradasIngresos = ingresos.mapIndexed { index, valor ->
                 BarEntry(index.toFloat(), valor.toFloat())
             }
@@ -93,39 +136,48 @@ fun GraficoBarras(ingresos: List<Double>, gastos: List<Double>, fechas: List<Loc
                 BarEntry(index.toFloat(), valor.toFloat())
             }
 
-            val ingresosDataSet = BarDataSet(entradasIngresos, "Ingresos").apply {
-                verde
+            //configuro el conjunto de los ingresos que mostrara el grafico
+            val datosIngresos = BarDataSet(entradasIngresos, "Ingresos").apply {
+                color = verde.toArgb()
                 valueTextSize = 12f
-                valueTextColor = Color.BLACK
+                valueTextColor = blanco.toArgb()
                 valueFormatter = object : ValueFormatter(){
-                    override fun getFormattedValue(value: Float): String {
-                        return String.format("%.2f€", value)
-                    }
-                }
-            }
-            val gastosDataSet = BarDataSet(entradasGastos,"Gastos").apply {
-                rojo
-                valueTextSize = 12f
-                valueTextColor = Color.BLACK
-                valueFormatter = object : ValueFormatter(){
-                    override fun getFormattedValue(value: Float): String {
-                        return String.format("%.2f€", value)
+                    //formateo los datos
+                    override fun getFormattedValue(valorIngresos: Float): String {
+                        return String.format("%.2f€", valorIngresos)
                     }
                 }
             }
 
+            //configuro los datos de los gastos
+            val datosGastos = BarDataSet(entradasGastos,"Gastos").apply {
+                color = rojo.toArgb()
+                valueTextSize = 12f
+                valueTextColor = blanco.toArgb()
+                //formateo los datos
+                valueFormatter = object : ValueFormatter(){
+                    override fun getFormattedValue(valorGastos: Float): String {
+                        return String.format("%.2f€", valorGastos)
+                    }
+                }
+            }
+
+            //configuro las fechas
             val etiquetasFechas = fechas.map { fecha ->
                 fecha.format(DateTimeFormatter.ofPattern("dd/MM"))
             }
-
             grafico.xAxis.valueFormatter = IndexAxisValueFormatter(etiquetasFechas)
-            val barData = BarData(ingresosDataSet, gastosDataSet).apply {
+
+            //configuro los datos agrupados de las barras con el tamaño
+            val datosBarras = BarData(datosIngresos, datosGastos).apply {
                 barWidth = 0.35f
             }
+            grafico.data = datosBarras
 
-            grafico.data = barData
             grafico.groupBars(-0.5f, 0.06f, 0.02f)
+            //ajusto las barras dentro del grafico
             grafico.setFitBars(true)
+            //redibujo el grafico
             grafico.invalidate()
         }
     )
@@ -133,10 +185,10 @@ fun GraficoBarras(ingresos: List<Double>, gastos: List<Double>, fechas: List<Loc
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun GraficoLineas(datos: List<Double>, fechas: List<LocalDate>, modifier: Modifier = Modifier){
+fun GraficoLineas(datos: List<Double>, fechas: List<LocalDate>){
 
     AndroidView(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .height(300.dp)
             .padding(16.dp),
@@ -145,27 +197,34 @@ fun GraficoLineas(datos: List<Double>, fechas: List<LocalDate>, modifier: Modifi
                 description.isEnabled = false
                 setDrawGridBackground(false)
                 setPinchZoom(false)
+                setBackgroundColor(colorFondo.toArgb())
 
+                //configuracion eje X
+                xAxis.apply {
+                    setDrawGridLines(true)
+                    gridColor = naranjaClaro.toArgb()
+                    textSize = 12f
+                    textColor = blanco.toArgb()
+                    axisLineColor = naranjaClaro.toArgb()
+                }
+                axisRight.isEnabled = false
+                animateX(1000)
+
+                //configuracion eje Y
                 axisLeft.apply {
                     setDrawGridLines(false)
                     textSize = 12f
-                    textColor = Color.BLACK
+                    textColor = blanco.toArgb()
+                    axisLineColor = naranjaClaro.toArgb()
                     valueFormatter = object : ValueFormatter(){
                         override fun getFormattedValue(value: Float): String {
                             return String.format("%.2f€", value)
                         }
                     }
                 }
+                animateY(1000)
 
-                xAxis.apply {
-                    setDrawGridLines(true)
-                    textSize = 12f
-                    textColor = Color.BLACK
-                    setDrawAxisLine(true)
-                }
-
-                axisRight.isEnabled = false
-
+                //configuracion de la leyenda
                 legend.apply {
                     verticalAlignment = Legend.LegendVerticalAlignment.TOP
                     horizontalAlignment = Legend.LegendHorizontalAlignment.RIGHT
@@ -173,50 +232,56 @@ fun GraficoLineas(datos: List<Double>, fechas: List<LocalDate>, modifier: Modifi
                     setDrawInside(false)
                     textSize = 12f
                     formSize = 12f
+                    textColor = blanco.toArgb()
                 }
-
-                animateX(1000)
             }
         },
         update = { grafico ->
+
+            //mapeo los datos a entradas
             val entradas = datos.mapIndexed { index, valor ->
                 Entry(index.toFloat(), valor.toFloat())
             }
 
-            val dataSet = LineDataSet(entradas, "Evolucion balance").apply {
-                azul
-                setCircleColors(Color.BLUE)
+            //configuracion del conjunto de datos
+            val conjuntoDatos = LineDataSet(entradas, "Evolucion balance").apply {
+                color = naranjaClaro.toArgb()
+                setCircleColors(blanco.toArgb())
                 lineWidth = 2f
+                //radio de los puntos de datos
                 circleRadius = 4f
+                //dibujo el espacio debajo de la linea
                 setDrawFilled(true)
-                fillColor = Color.BLUE
+                //color del area debajo de la linea
+                fillColor = naranjaClaro.toArgb()
+                //transparencia del area debajo de la linea
                 fillAlpha = 50
+                //para suavizar la linea
                 mode = LineDataSet.Mode.CUBIC_BEZIER
                 valueTextSize = 10f
-                valueTextColor = Color.BLACK
+                valueTextColor = blanco.toArgb()
                 valueFormatter = object : ValueFormatter(){
-                    override fun getFormattedValue(value: Float): String {
-                        return String.format("%.2f€", value)
+                    override fun getFormattedValue(valorDatos: Float): String {
+                        return String.format("%.2f€", valorDatos)
                     }
                 }
             }
 
+            //configuro las fechas
             val etiquetasFechas = fechas.map { fecha ->
                 fecha.format(DateTimeFormatter.ofPattern("dd/MM"))
             }
-
             grafico.xAxis.valueFormatter = IndexAxisValueFormatter(etiquetasFechas)
 
-            grafico.data = LineData(dataSet)
+            //pongo el conjunto de datos en el grafico
+            grafico.data = LineData(conjuntoDatos)
             grafico.invalidate()
         }
     )
 }
 
-
 @Composable
-fun GraficoCircular(datos: Map<String, Double>, modifier: Modifier = Modifier){
-
+fun GraficoCircularIngresos(datosIngresos: Map<String, Double>, modifier: Modifier = Modifier) {
     AndroidView(
         modifier = modifier
             .fillMaxWidth()
@@ -227,64 +292,44 @@ fun GraficoCircular(datos: Map<String, Double>, modifier: Modifier = Modifier){
                 description.isEnabled = false
                 setUsePercentValues(true)
                 setExtraOffsets(5f, 10f, 5f, 5f)
+                setBackgroundColor(colorFondo.toArgb())
 
-                dragDecelerationFrictionCoef = 0.95f
                 isDrawHoleEnabled = true
-                setHoleColor(Color.WHITE)
-                setTransparentCircleColor(Color.WHITE)
+                setHoleColor(colorFondo.toArgb())
+                setTransparentCircleColor(blanco.toArgb())
                 setTransparentCircleAlpha(110)
-                holeRadius = 58f
-                transparentCircleRadius = 61f
-
-                setDrawCenterText(true)
-                centerText = "Gastos por\nCategoria"
-                setCenterTextSize(16f)
+                holeRadius = 40f
+                transparentCircleRadius = 45f
 
                 legend.apply {
-                    verticalAlignment = Legend.LegendVerticalAlignment.TOP
-                    horizontalAlignment = Legend.LegendHorizontalAlignment.RIGHT
-                    orientation = Legend.LegendOrientation.VERTICAL
+                    verticalAlignment = Legend.LegendVerticalAlignment.BOTTOM
+                    horizontalAlignment = Legend.LegendHorizontalAlignment.CENTER
+                    orientation = Legend.LegendOrientation.HORIZONTAL
                     setDrawInside(false)
-                    textSize = 12f
-                    xEntrySpace = 7f
-                    yEntrySpace = 0f
-                    yOffset = 0f
+                    textSize = 10f
+                    textColor = blanco.toArgb()
                 }
 
                 animateY(1000)
             }
         },
         update = { grafico ->
-            val entradas = datos.map { (categoria, valor) ->
+            val entradas = datosIngresos.map { (categoria, valor) ->
                 PieEntry(valor.toFloat(), categoria)
             }
 
-            val colores = listOf(
-                Color.rgb(244, 67, 54),    // Rojo
-                Color.rgb(156, 39, 176),   // Púrpura
-                Color.rgb(33, 150, 243),   // Azul
-                Color.rgb(76, 175, 80),    // Verde
-                Color.rgb(255, 152, 0),    // Naranja
-                Color.rgb(233, 30, 99),    // Rosa
-                Color.rgb(0, 188, 212),    // Cyan
-                Color.rgb(255, 235, 59)    // Amarillo
-            )
-
-            val dataSet = PieDataSet(entradas, "").apply {
-                this.colors = colores
-                valueLinePart1OffsetPercentage = 80f
-                valueLinePart1Length = 0.2f
-                valueLinePart2Length = 0.4f
+            val dataSet = PieDataSet(entradas, "Ingresos").apply {
+                this.colors = listOf(verde.toArgb(), azul.toArgb(), naranjaClaro.toArgb())
                 yValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
-                valueTextSize = 12f
-                valueTextColor = Color.BLACK
+                valueTextSize = 10f
+                valueTextColor = blanco.toArgb()
                 selectionShift = 5f
             }
 
             val data = PieData(dataSet).apply {
                 setValueFormatter(PercentFormatter(grafico))
-                setValueTextSize(11f)
-                setValueTextColor(Color.BLACK)
+                setValueTextSize(10f)
+                setValueTextColor(blanco.toArgb())
             }
 
             grafico.data = data
@@ -293,4 +338,61 @@ fun GraficoCircular(datos: Map<String, Double>, modifier: Modifier = Modifier){
     )
 }
 
+@Composable
+fun GraficoCircularGastos(datosGastos: Map<String, Double>, modifier: Modifier = Modifier) {
+    AndroidView(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(300.dp)
+            .padding(16.dp),
+        factory = { context ->
+            PieChart(context).apply {
+                description.isEnabled = false
+                setUsePercentValues(true)
+                setExtraOffsets(5f, 10f, 5f, 5f)
+                setBackgroundColor(colorFondo.toArgb())
+
+                isDrawHoleEnabled = true
+                setHoleColor(colorFondo.toArgb())
+                setTransparentCircleColor(blanco.toArgb())
+                setTransparentCircleAlpha(110)
+                holeRadius = 40f
+                transparentCircleRadius = 45f
+
+                legend.apply {
+                    verticalAlignment = Legend.LegendVerticalAlignment.BOTTOM
+                    horizontalAlignment = Legend.LegendHorizontalAlignment.CENTER
+                    orientation = Legend.LegendOrientation.HORIZONTAL
+                    setDrawInside(false)
+                    textSize = 10f
+                    textColor = blanco.toArgb()
+                }
+
+                animateY(1000)
+            }
+        },
+        update = { grafico ->
+            val entradas = datosGastos.map { (categoria, valor) ->
+                PieEntry(valor.toFloat(), categoria)
+            }
+
+            val dataSet = PieDataSet(entradas, "Gastos").apply {
+                this.colors = listOf(rojo.toArgb(), grisClaro.toArgb(), naranjaClaro.toArgb())
+                yValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
+                valueTextSize = 10f
+                valueTextColor = blanco.toArgb()
+                selectionShift = 5f
+            }
+
+            val data = PieData(dataSet).apply {
+                setValueFormatter(PercentFormatter(grafico))
+                setValueTextSize(10f)
+                setValueTextColor(blanco.toArgb())
+            }
+
+            grafico.data = data
+            grafico.invalidate()
+        }
+    )
+}
 

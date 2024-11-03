@@ -1,55 +1,84 @@
 package com.dam2jms.gestiongastosapp.states
 
-import com.dam2jms.gestiongastosapp.navigation.AppScreen
-
 import android.os.Build
 import androidx.annotation.RequiresApi
+import com.dam2jms.gestiongastosapp.navigation.AppScreen
+
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.O)
 data class UiState(
-    // Login and Register Screen
+
+    // Autenticación
     val email: String = "",
     val password: String = "",
     val visibilidadPasssword: Boolean = false,
 
-    // Home Screen
+    // Balance General
     val balanceTotal: Double = 0.0,
+    val balanceAnual: Double = 0.0,
+    val balanceDiario: Double = 0.0,
+    val balanceMensual: Double = 0.0,
+
+    // Ingresos
+    val ingresosDiarios: Double = 0.0,
     val ingresosMensuales: Double = 0.0,
-    val gastosMensuales: Double = 0.0,
-    val ahorrosMensuales: Double = 0.0,
-    val financialGoal: Double = 0.0,
-    val diasHastaMeta: Int = 0,
-    val monedaActual: String = "USD",
-    val transaccionesRecientes: List<TransactionState> = emptyList(),
-    val gastosPorCategoria: Map<String, Double> = emptyMap(),
+    val ingresosAnuales: Double = 0.0,
     val ingresosPorCategoria: Map<String, Double> = emptyMap(),
-    val consejosFinancieros: List<String> = emptyList(),
-    val tasaAhorro: Double = 0.0,
+    val promedioIngresosDiario: Double = 0.0,
+
+    // Gastos
+    val gastosDiarios: Double = 0.0,
+    val gastosMensuales: Double = 0.0,
+    val gastosAnuales: Double = 0.0,
+    val gastosPorCategoria: Map<String, Double> = emptyMap(),
     val promedioGastoDiario: Double = 0.0,
-    val ingresosTotales: Double = ingresosPorCategoria.values.sum(),
-    val gastosTotales: Double = gastosPorCategoria.values.sum(),
+    val promedioGastoMensual: Double = 0.0,
+    val porcentajeGastosMensual: Double = 0.0,
+    val tendenciaMensual: Double = 0.0,
 
-    // History Screen
-    val transaccionesFiltradas: List<TransactionState> = emptyList(),
+    // Ahorros
+    val ahorrosDiarios: Double = 0.0,
+    val ahorrosMensuales: Double = 0.0,
+    val ahorroProgreso: Float = 0.0f,
+    val tasaAhorro: Double = 0.0,
+    val tasaAhorroDiaria: Double = 0.0,
+    val tasaAhorroMensual: Double = 0.0,
 
-    // Edit Transaction Screen
+    // Meta Financiera
+    val objetivoFinanciero: Double = 0.0,
+    val fechaObjetivo: LocalDate? = null,
+    val diasHastaMeta: Int = 0,
+    val diasRestantesMes: Int = 0,
+    val ahorroDiarioNecesario: Double = 0.0,
+    val ahorrosTotales: Double = 0.0,
+    val progresoMeta: Double = 0.0,
+    val estadoMeta: String = "",
+    val idObjetivoFinanciero: String = "",
+
+    // Transacciones
+    val transaccionesRecientes: List<TransactionUiState> = emptyList(),
+    val transaccionesFiltradas: List<TransactionUiState> = emptyList(),
+    val gastos: List<TransactionUiState> = emptyList(),
+    val ingresos: List<TransactionUiState> = emptyList(),
+
+    // Edición de Transacciones
     val cantidad: Double = 0.0,
     val categoria: String = "",
     val tipo: String = "",
-    val fechaTransaccion: String = LocalDate.now().format(DateTimeFormatter.ISO_DATE), // New field for transaction date
+    val fechaTransaccion: String = LocalDate.now().format(DateTimeFormatter.ISO_DATE),
 
-    // Transaction ViewModel
-    val gastos: List<TransactionState> = emptyList(),
-    val ingresos: List<TransactionState> = emptyList(),
+    // Configuración
+    val monedaActual: String = "USD",
+    val montoConvertido: Double = 0.0,  // Campo para la cantidad convertida
 
-    // Home ViewModel
-    val totalGastos: Double = 0.0,
-    val ingresosDiarios: Double = 0.0,
-    val gastosDiarios: Double = 0.0,
-    val ahorrosDiarios: Double = 0.0,
+    // Resumen Financiero
+    val resumenFinanciero: Map<String, Double> = emptyMap(),
 
-    // Aux ViewModel
-    var screenActual: AppScreen = AppScreen.HomeScreen
+    // Estado de la UI
+    val screenActual: AppScreen = AppScreen.HomeScreen,
+    val consejosFinancieros: List<String> = emptyList()
 )
+
+

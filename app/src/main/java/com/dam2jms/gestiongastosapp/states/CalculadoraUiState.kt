@@ -14,5 +14,14 @@ data class CalculadoraUiState(
     val monedaActual: String = "€",
     val ingresosTotales: Double = 0.0,
     val gastosTotales: Double = 0.0,
-    val balanceTotal: Double = 0.0
+    val balanceTotal: Double = 0.0,
+    val montoConvertido: Double = 0.0,
+    val totalIntereses: Double = 0.0,
+    val perdidaPoderAdquisitivo: Double = 0.0,
+    val montoAjustadoInflacion: Double = 0.0,
+    val roi: Double = 0.0,
+    val gananciaTotal: Double = 0.0,
+    val totalPersonas: Int = 0,
+    val cantidadPorPersona: Double = 0.0,
+    val montoFuturo: Double = 0.0
 )
