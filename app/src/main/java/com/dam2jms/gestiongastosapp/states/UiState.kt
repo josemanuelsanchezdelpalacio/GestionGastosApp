@@ -10,25 +10,25 @@ import java.time.format.DateTimeFormatter
 @RequiresApi(Build.VERSION_CODES.O)
 data class UiState(
 
-    // Autenticación
+    //autenticacion
     val email: String = "",
     val password: String = "",
     val visibilidadPasssword: Boolean = false,
 
-    // Balance General
+    //balance general (homescreen)
     val balanceTotal: Double = 0.0,
     val balanceAnual: Double = 0.0,
     val balanceDiario: Double = 0.0,
     val balanceMensual: Double = 0.0,
 
-    // Ingresos
+    //ingresos (homescreen)
     val ingresosDiarios: Double = 0.0,
     val ingresosMensuales: Double = 0.0,
     val ingresosAnuales: Double = 0.0,
     val ingresosPorCategoria: Map<String, Double> = emptyMap(),
     val promedioIngresosDiario: Double = 0.0,
 
-    // Gastos
+    //gastos (homescreen)
     val gastosDiarios: Double = 0.0,
     val gastosMensuales: Double = 0.0,
     val gastosAnuales: Double = 0.0,
@@ -38,7 +38,7 @@ data class UiState(
     val porcentajeGastosMensual: Double = 0.0,
     val tendenciaMensual: Double = 0.0,
 
-    // Ahorros
+    //ahorros (homescreen)
     val ahorrosDiarios: Double = 0.0,
     val ahorrosMensuales: Double = 0.0,
     val ahorroProgreso: Float = 0.0f,
@@ -46,7 +46,7 @@ data class UiState(
     val tasaAhorroDiaria: Double = 0.0,
     val tasaAhorroMensual: Double = 0.0,
 
-    // Meta Financiera
+    //meta financiera (homescreen)
     val objetivoFinanciero: Double = 0.0,
     val fechaObjetivo: LocalDate? = null,
     val diasHastaMeta: Int = 0,
@@ -57,28 +57,25 @@ data class UiState(
     val estadoMeta: String = "",
     val idObjetivoFinanciero: String = "",
 
-    // Transacciones
+    //para transactionscreen
     val transaccionesRecientes: List<TransactionUiState> = emptyList(),
     val transaccionesFiltradas: List<TransactionUiState> = emptyList(),
     val gastos: List<TransactionUiState> = emptyList(),
     val ingresos: List<TransactionUiState> = emptyList(),
 
-    // Edición de Transacciones
+    //para editransactionscreen
     val cantidad: Double = 0.0,
     val categoria: String = "",
     val tipo: String = "",
     val fechaTransaccion: String = LocalDate.now().format(DateTimeFormatter.ISO_DATE),
 
-    // Configuración
+    //para manejo de monedas
     val monedaActual: String = "USD",
-    val montoConvertido: Double = 0.0,  // Campo para la cantidad convertida
+    val cantidadConvertida: Double = 0.0,
 
-    // Resumen Financiero
-    val resumenFinanciero: Map<String, Double> = emptyMap(),
 
-    // Estado de la UI
-    val screenActual: AppScreen = AppScreen.HomeScreen,
-    val consejosFinancieros: List<String> = emptyList()
+    //estado de la UI
+    val screenActual: AppScreen = AppScreen.HomeScreen
 )
 
 

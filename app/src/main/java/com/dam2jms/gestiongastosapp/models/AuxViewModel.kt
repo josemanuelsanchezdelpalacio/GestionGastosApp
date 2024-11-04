@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
 import com.dam2jms.gestiongastosapp.states.TransactionUiState
@@ -25,10 +26,13 @@ import com.dam2jms.gestiongastosapp.ui.theme.grisClaro
 import com.dam2jms.gestiongastosapp.ui.theme.naranjaClaro
 import com.dam2jms.gestiongastosapp.utils.FireStoreUtil
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
 class AuxViewModel() : ViewModel() {
@@ -71,21 +75,28 @@ class AuxViewModel() : ViewModel() {
 
     fun eliminarTransaccionExistente(tipo: String, transaccionId: String, context: Context) {
 
-        auth.currentUser?.uid?.let { userId ->
-            fireStoreUtil.eliminarTransaccion(
-                tipo = tipo,
-                transaccionId = transaccionId,
-                userId = userId,
-                onSuccess = {
-                    Toast.makeText(context, "Transacción eliminada correctamente", Toast.LENGTH_SHORT).show()
-                    leerTransacciones(context)
-                },
-                onFailure = { exception ->
-                    Toast.makeText(context, "Error al eliminar la transaccion: ${exception.message}", Toast.LENGTH_SHORT).show()
-                }
-            )
-        } ?:
-        Toast.makeText(context, "No se encontró el usuario", Toast.LENGTH_SHORT).show()
+        val userId = Firebase.auth.currentUser?.uid
+
+        if (userId == null) {
+            Toast.makeText(context, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                FireStoreUtil.eliminarTransaccion(tipo, transaccionId, userId,
+                    onSuccess = {
+                        Toast.makeText(context, "Transaccon eliminada correctamente", Toast.LENGTH_SHORT).show()
+                        leerTransacciones(context)
+                    },
+                    onFailure = { exception ->
+                        Toast.makeText(context, "Error al eliminar la transaccion: ${exception.message}", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error inesperado al eliminar la transaccion", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }
 

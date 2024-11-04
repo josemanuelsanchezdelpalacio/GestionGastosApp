@@ -5,22 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCard
-import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.CardGiftcard
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Flight
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MonetizationOn
-import androidx.compose.material.icons.filled.Money
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,8 +24,8 @@ import com.dam2jms.gestiongastosapp.ui.theme.*
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
 import com.dam2jms.gestiongastosapp.models.MonedasViewModel
 import com.dam2jms.gestiongastosapp.states.TransactionUiState
-import kotlinx.coroutines.flow.update
 
+@OptIn(ExperimentalMaterial3Api::class)
 object ItemComponents {
 
     /**metodo para crear un componente reutilizable para la innformacion de las transacciones en un card con opciones para editar y eliminar**/
@@ -50,12 +35,12 @@ object ItemComponents {
         monedaActual: String,
         navController: NavController,
         onEliminar: (String) -> Unit,
-        onClick: () -> Unit // Agregado el parámetro onClick
+        onClick: () -> Unit
     ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp)
+                .padding(vertical = 8.dp)
                 .shadow(4.dp, RoundedCornerShape(8.dp)),
             shape = RoundedCornerShape(8.dp),
             colors = CardDefaults.cardColors(containerColor = colorFondo)
@@ -63,12 +48,11 @@ object ItemComponents {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .clickable(onClick = onClick), // Hacer que toda la tarjeta sea clickeable
+                    .clickable(onClick = onClick)
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Información de la transacción
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = transaccion.descripcion,
@@ -76,14 +60,12 @@ object ItemComponents {
                         color = blanco
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-
                     Text(
-                        text = "${monedaActual} ${String.format("%,.2f", transaccion.cantidad)}",
+                        text = "${monedaActual} ${String.format("%.2f", transaccion.cantidad)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (transaccion.tipo == "ingreso") verde else rojo
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-
                     Text(
                         text = transaccion.fecha,
                         style = MaterialTheme.typography.bodySmall,
@@ -91,21 +73,32 @@ object ItemComponents {
                     )
                 }
 
-                // Botones para editar y eliminar
                 Row {
                     IconButton(
                         onClick = {
-                            navController.navigate(AppScreen.EditTransactionScreen.createRoute(transaccion.id))
+                            navController.navigate(
+                                AppScreen.EditTransactionScreen.createRoute(
+                                    transaccion.id
+                                )
+                            )
                         },
                         content = {
-                            Icon(Icons.Filled.Edit, contentDescription = "Editar transacción", tint = blanco)
+                            Icon(
+                                Icons.Filled.Edit,
+                                contentDescription = "Editar transacción",
+                                tint = blanco
+                            )
                         }
                     )
 
                     IconButton(
                         onClick = { onEliminar(transaccion.id) },
                         content = {
-                            Icon(Icons.Filled.Delete, contentDescription = "Eliminar transacción", tint = blanco)
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = "Eliminar transacción",
+                                tint = blanco
+                            )
                         }
                     )
                 }
@@ -150,10 +143,13 @@ object ItemComponents {
         )
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun SelectorCategoria(selectedCategory: String, categorias: List<Categoria>, onCategorySelected: (String) -> Unit) {
-
+    fun SelectorCategoria(
+        categoriaSeleccionada: String,
+        categorias: List<Categoria>,
+        onCategorySelected: (String) -> Unit,
+        tipo: String
+    ) {
         var expanded by remember { mutableStateOf(false) }
 
         Column(
@@ -161,7 +157,7 @@ object ItemComponents {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Categoría",
+                text = "Categoria",
                 style = MaterialTheme.typography.bodyLarge,
                 color = blanco,
                 fontWeight = FontWeight.Medium
@@ -177,11 +173,11 @@ object ItemComponents {
                         .fillMaxWidth()
                         .menuAnchor(),
                     readOnly = true,
-                    value = selectedCategory.replaceFirstChar { it.uppercase() },
-                    onValueChange = {}, // Este campo es solo de lectura
+                    value = categoriaSeleccionada.replaceFirstChar { it.uppercase() },
+                    onValueChange = {},
                     leadingIcon = {
                         Icon(
-                            imageVector = obtenerIconoCategoria(selectedCategory),
+                            imageVector = obtenerIconoCategoria(categoriaSeleccionada),
                             contentDescription = "Icono categoría",
                             tint = naranjaClaro
                         )
@@ -240,8 +236,8 @@ object ItemComponents {
                                 leadingIconColor = naranjaClaro
                             ),
                             modifier = Modifier.background(
-                                if (categoria.nombre == selectedCategory) {
-                                    naranjaClaro.copy(alpha = 0.1f)
+                                if (categoria.nombre == categoriaSeleccionada) {
+                                    naranjaClaro
                                 } else {
                                     Color.Transparent
                                 }

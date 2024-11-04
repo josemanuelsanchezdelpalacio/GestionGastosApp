@@ -1,3 +1,5 @@
+package com.dam2jms.gestiongastosapp.models
+
 import android.content.Context
 import android.os.Build
 import android.util.Log
@@ -5,7 +7,6 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dam2jms.gestiongastosapp.models.MonedasViewModel
 import com.dam2jms.gestiongastosapp.states.UiState
 import com.dam2jms.gestiongastosapp.utils.FireStoreUtil
 import com.google.firebase.auth.ktx.auth
@@ -28,12 +29,14 @@ class HomeViewModel : ViewModel() {
     private val db = Firebase.firestore
     private val monedasViewModel = MonedasViewModel()
 
+    //inicializacion y carga de datos
     init {
         leerTransacciones()
         cargarMetaFinanciera()
     }
 
     private fun leerTransacciones() {
+
         FireStoreUtil.obtenerTransacciones(
             onSuccess = { transacciones ->
                 val ingresos = transacciones.filter { it.tipo == "ingreso" }
@@ -57,12 +60,20 @@ class HomeViewModel : ViewModel() {
     }
 
     private fun cargarMetaFinanciera() {
+
         val userId = Firebase.auth.currentUser?.uid ?: return
+
         db.collection("users").document(userId).get()
             .addOnSuccessListener { document ->
-                if (document != null) {
+                if (document.exists()) {
                     val metaFinanciera = document.getDouble("metaFinanciera") ?: 0.0
-                    val fechaMeta = document.getString("fechaMeta")?.let { LocalDate.parse(it) }
+                    val fechaMeta = document.getString("fechaMeta")?.let {
+                        try {
+                            LocalDate.parse(it)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
                     val metaId = document.getString("financialGoalId") ?: ""
 
                     _uiState.update { currentState ->
@@ -72,7 +83,7 @@ class HomeViewModel : ViewModel() {
                             idObjetivoFinanciero = metaId
                         )
                     }
-                    establecerFechaMeta(fechaMeta ?: LocalDate.now())
+                    fechaMeta?.let { establecerFechaMeta(it) }
                 }
             }
             .addOnFailureListener { e ->
@@ -81,6 +92,7 @@ class HomeViewModel : ViewModel() {
     }
 
     private fun actualizarBalances() {
+
         val ingresosTotales = _uiState.value.ingresos.sumOf { it.cantidad }
         val gastosTotales = _uiState.value.gastos.sumOf { it.cantidad }
         val balanceTotal = ingresosTotales - gastosTotales
@@ -90,13 +102,15 @@ class HomeViewModel : ViewModel() {
             it.copy(
                 balanceTotal = balanceTotal,
                 ahorrosTotales = ahorroTotal,
-                progresoMeta = calculateGoalProgress()
+                progresoMeta = calcularProgresoMeta()
             )
         }
     }
 
     private fun actualizarIngresosGastosDiarios() {
+
         val hoy = LocalDate.now()
+
         val ingresosDiarios = _uiState.value.ingresos
             .filter { LocalDate.parse(it.fecha) == hoy }
             .sumOf { it.cantidad }
@@ -113,7 +127,9 @@ class HomeViewModel : ViewModel() {
     }
 
     private fun actualizarIngresosGastosMensuales() {
+
         val hoy = LocalDate.now()
+
         val ingresosMensuales = _uiState.value.ingresos
             .filter { LocalDate.parse(it.fecha).month == hoy.month }
             .sumOf { it.cantidad }
@@ -130,7 +146,9 @@ class HomeViewModel : ViewModel() {
     }
 
     private fun actualizarIngresosGastosAnuales() {
+
         val hoy = LocalDate.now()
+
         val ingresosAnuales = _uiState.value.ingresos
             .filter { LocalDate.parse(it.fecha).year == hoy.year }
             .sumOf { it.cantidad }
@@ -146,7 +164,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    private fun calculateGoalProgress(): Double {
+    fun calcularProgresoMeta(): Double {
         val balanceTotal = _uiState.value.balanceTotal
         val metaFinanciera = _uiState.value.objetivoFinanciero
 
@@ -186,7 +204,7 @@ class HomeViewModel : ViewModel() {
                 it.copy(
                     fechaObjetivo = fechaMeta,
                     diasHastaMeta = -1,
-                    estadoMeta = "Por favor, establece primero una meta financiera"
+                    estadoMeta = "Establece primero una meta financiera"
                 )
             }
             return
@@ -208,7 +226,7 @@ class HomeViewModel : ViewModel() {
         val ahorroDiarioNecesario = ahorroNecesarioTotal / diasDiferencia
 
         val estadoMeta = when {
-            ahorroNecesarioTotal <= 0 -> "¡Ya has alcanzado tu meta financiera!"
+            ahorroNecesarioTotal <= 0 -> "Has alcanzado tu objetivo"
             else -> "Debes ahorrar ${String.format("%.2f", ahorroDiarioNecesario)} diarios para alcanzar tu meta"
         }
 
@@ -217,7 +235,7 @@ class HomeViewModel : ViewModel() {
                 fechaObjetivo = fechaMeta,
                 diasHastaMeta = diasDiferencia,
                 ahorroDiarioNecesario = ahorroDiarioNecesario,
-                progresoMeta = calculateGoalProgress(),
+                progresoMeta = calcularProgresoMeta(),
                 estadoMeta = estadoMeta
             )
         }
@@ -240,27 +258,41 @@ class HomeViewModel : ViewModel() {
             }
     }
 
-    fun eliminarMeta(context: Context) {
-        val userId = Firebase.auth.currentUser?.uid ?: return
-        db.collection("users").document(userId)
-            .update(mapOf("metaFinanciera" to 0.0, "fechaMeta" to null))
-            .addOnSuccessListener {
-                _uiState.update {
-                    it.copy(
-                        objetivoFinanciero = 0.0,
-                        fechaObjetivo = null,
-                        diasHastaMeta = -1,
-                        estadoMeta = "Meta eliminada",
-                        ahorroDiarioNecesario = 0.0
-                    )
-                }
-                Toast.makeText(context, "Meta eliminada con éxito", Toast.LENGTH_SHORT).show()
-            }
-            .addOnFailureListener { e ->
-                Toast.makeText(context, "Error al eliminar la meta: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-    }
 
+    fun eliminarMeta(context: Context) {
+
+        val idUsuario = Firebase.auth.currentUser?.uid
+
+        if (idUsuario == null) {
+            Toast.makeText(context, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        //actualizo el estado local
+        _uiState.update { currentState ->
+            currentState.copy(
+                objetivoFinanciero = 0.0,
+                fechaObjetivo = null,
+                diasHastaMeta = -1,
+                estadoMeta = "",
+                ahorroDiarioNecesario = 0.0,
+                progresoMeta = 0.0,
+                idObjetivoFinanciero = ""
+            )
+        }
+
+        //actualizo firestore
+        FireStoreUtil.eliminarMetaFinanciera(
+            idUsuario = idUsuario,
+            onSuccess = {
+                Toast.makeText(context, "Meta eliminada con éxito", Toast.LENGTH_SHORT).show()
+            },
+            onFailure = { e ->
+                Toast.makeText(context, "Error al eliminar la meta: ${e.message}", Toast.LENGTH_SHORT).show()
+                cargarMetaFinanciera()
+            }
+        )
+    }
 
     fun actualizarMoneda(nuevaMoneda: String) {
         viewModelScope.launch {

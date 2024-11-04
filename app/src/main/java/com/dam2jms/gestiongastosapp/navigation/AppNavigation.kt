@@ -1,8 +1,5 @@
 package com.dam2jms.gestiongastosapp.navigation
 
-import GraficosViewModel
-import HomeScreen
-import HomeViewModel
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
@@ -17,8 +14,10 @@ import com.dam2jms.gestiongastosapp.models.AuxViewModel
 import com.dam2jms.gestiongastosapp.models.CalculadoraViewModel
 import com.dam2jms.gestiongastosapp.models.MonedasViewModel
 import com.dam2jms.gestiongastosapp.models.EditTransactionViewModel
+import com.dam2jms.gestiongastosapp.models.GraficosViewModel
 import com.dam2jms.gestiongastosapp.screens.GraficosScreen
 import com.dam2jms.gestiongastosapp.models.HistoryViewModel
+import com.dam2jms.gestiongastosapp.models.HomeViewModel
 import com.dam2jms.gestiongastosapp.models.LoginViewModel
 import com.dam2jms.gestiongastosapp.models.RegisterViewModel
 import com.dam2jms.gestiongastosapp.models.TransactionViewModel
@@ -26,6 +25,7 @@ import com.dam2jms.gestiongastosapp.screens.AddTransactionScreen
 import com.dam2jms.gestiongastosapp.screens.CalculadoraScreen
 import com.dam2jms.gestiongastosapp.screens.EditTransactionScreen
 import com.dam2jms.gestiongastosapp.screens.HistoryScreen
+import com.dam2jms.gestiongastosapp.screens.HomeScreen
 import com.dam2jms.gestiongastosapp.screens.RegisterScreen
 import com.dam2jms.gestiongastosapp.screens.LoginScreen
 import com.dam2jms.gestiongastosapp.screens.TransactionScreen

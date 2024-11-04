@@ -1,6 +1,5 @@
 package com.dam2jms.gestiongastosapp.screens
 
-import GraficosViewModel
 import ItemComponents.SelectorMoneda
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -27,8 +26,8 @@ import com.dam2jms.gestiongastosapp.components.GraficoBarras
 import com.dam2jms.gestiongastosapp.components.GraficoCircularGastos
 import com.dam2jms.gestiongastosapp.components.GraficoCircularIngresos
 import com.dam2jms.gestiongastosapp.components.GraficoLineas
-import com.dam2jms.gestiongastosapp.data.CategoriaAPI
 import com.dam2jms.gestiongastosapp.models.AuxViewModel
+import com.dam2jms.gestiongastosapp.models.GraficosViewModel
 import com.dam2jms.gestiongastosapp.models.MonedasViewModel
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
 import com.dam2jms.gestiongastosapp.states.GraficosUiState
@@ -37,17 +36,19 @@ import com.dam2jms.gestiongastosapp.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun GraficosScreen(
-    navController: NavController,
-    graficosViewModel: GraficosViewModel,
-    auxViewModel: AuxViewModel,
-    monedasViewModel: MonedasViewModel
-) {
+fun GraficosScreen(navController: NavController, graficosViewModel: GraficosViewModel, auxViewModel: AuxViewModel, monedasViewModel: MonedasViewModel) {
+
     val uiState by graficosViewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
     var seleccionSeccion by remember { mutableStateOf(0) }
     var seleccionarRangoGraficos by remember { mutableStateOf(GraficosViewModel.RangoTiempo.MONTH) }
     var mostrarListaMonedas by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+
+    fun cambiarRangoTiempo(nuevoRango: GraficosViewModel.RangoTiempo) {
+        seleccionarRangoGraficos = nuevoRango
+        graficosViewModel.establecerRangoGraficos(nuevoRango)
+    }
 
     Scaffold(
         topBar = {
@@ -81,6 +82,8 @@ fun GraficosScreen(
             )
         },
         bottomBar = {
+
+            //barra inferior con las distintas pantallas
             BottomAppBarReutilizable(
                 navController = navController,
                 screenActual = AppScreen.TransactionScreen,
@@ -93,16 +96,11 @@ fun GraficosScreen(
     ) { paddingValues ->
         GraficosBodyScreen(
             uiState = uiState,
-            seleccionSeccion = seleccionSeccion,
+            paddingValues = paddingValues,
             onSeleccionSeccionChange = { seleccionSeccion = it },
-            selectedRangoTiempo = seleccionarRangoGraficos,
-            onTimeRangeChange = {
-                seleccionarRangoGraficos = it
-                graficosViewModel.establecerRangoGraficos(it)
-            },
-            mostrarListaMonedas = mostrarListaMonedas,
-            onMostrarListaMonedasChange = { mostrarListaMonedas = it },
-            paddingValues = paddingValues
+            rangoSeleccionado = { cambiarRangoTiempo(it) },
+            seleccionSeccion = seleccionSeccion,
+            seleccionarRango = seleccionarRangoGraficos,
         )
 
         if (mostrarListaMonedas) {
@@ -121,14 +119,13 @@ fun GraficosScreen(
 @Composable
 fun GraficosBodyScreen(
     uiState: GraficosUiState,
-    seleccionSeccion: Int,
+    paddingValues: PaddingValues,
     onSeleccionSeccionChange: (Int) -> Unit,
-    selectedRangoTiempo: GraficosViewModel.RangoTiempo,
-    onTimeRangeChange: (GraficosViewModel.RangoTiempo) -> Unit,
-    mostrarListaMonedas: Boolean,
-    onMostrarListaMonedasChange: (Boolean) -> Unit,
-    paddingValues: PaddingValues
+    rangoSeleccionado: (GraficosViewModel.RangoTiempo) -> Unit,
+    seleccionSeccion: Int,
+    seleccionarRango: GraficosViewModel.RangoTiempo,
 ) {
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -158,7 +155,7 @@ fun GraficosBodyScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Gráficos según la sección seleccionada
+        //graficos según la seccion seleccionada
         item {
             when (seleccionSeccion) {
                 0 -> GraficoBarras(
@@ -187,25 +184,27 @@ fun GraficosBodyScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Resumen financiero y selector de rango temporal
+        //card con informacion financiera y rangos de tiempo
         item {
-            FinancialSummaryCard(
+            InformacionFinancieraCard(
                 totalIngresos = uiState.totalIngresos,
                 totalGastos = uiState.totalGastos,
                 balanceTotal = uiState.balanceTotal,
                 ratioAhorro = uiState.ratioAhorro
             )
+
             Spacer(modifier = Modifier.height(16.dp))
-            TimeRangeSelector(
-                selectedRange = selectedRangoTiempo,
-                onRangeSelected = onTimeRangeChange
+
+            SeleccionRangoTiempo(
+                seleccionarRango = seleccionarRango,
+                rangoSeleccionado = rangoSeleccionado
             )
         }
     }
 }
 
 @Composable
-fun FinancialSummaryCard(
+fun InformacionFinancieraCard(
     totalIngresos: Double,
     totalGastos: Double,
     balanceTotal: Double,
@@ -230,15 +229,15 @@ fun FinancialSummaryCard(
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun TimeRangeSelector(
-    selectedRange: GraficosViewModel.RangoTiempo,
-    onRangeSelected: (GraficosViewModel.RangoTiempo) -> Unit
+fun SeleccionRangoTiempo(
+    seleccionarRango: GraficosViewModel.RangoTiempo,
+    rangoSeleccionado: (GraficosViewModel.RangoTiempo) -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         GraficosViewModel.RangoTiempo.values().forEach { timeRange ->
             Button(
-                onClick = { onRangeSelected(timeRange) },
-                colors = ButtonDefaults.buttonColors(containerColor = if (selectedRange == timeRange) naranjaClaro else Color.LightGray) // Cambiado el color del botón no seleccionado
+                onClick = { rangoSeleccionado(timeRange) },
+                colors = ButtonDefaults.buttonColors(containerColor = if (seleccionarRango == timeRange) naranjaClaro else Color.LightGray) // Cambiado el color del botón no seleccionado
             ) {
                 Text(text = timeRange.name.capitalize(), color = blanco)
             }

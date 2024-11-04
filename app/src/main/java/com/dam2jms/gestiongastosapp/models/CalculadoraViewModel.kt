@@ -4,9 +4,24 @@ import android.content.Context
 import android.os.Build
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import com.dam2jms.gestiongastosapp.states.CalculadoraUiState
 import com.dam2jms.gestiongastosapp.states.FilaPrestamo
+import com.dam2jms.gestiongastosapp.ui.theme.blanco
+import com.dam2jms.gestiongastosapp.ui.theme.grisClaro
+import com.dam2jms.gestiongastosapp.ui.theme.naranjaClaro
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +35,51 @@ class CalculadoraViewModel : ViewModel() {
     //para controlar el estado de la UI
     private val _uiState = MutableStateFlow(CalculadoraUiState())
     val uiState: StateFlow<CalculadoraUiState> = _uiState.asStateFlow()
+
+    @Composable
+    fun calculadoraSelector(
+        seleccionarCalculadora: Int,
+        onSeleccionarCalculadora: (Int) -> Unit,
+        colorFondo: Color = grisClaro,
+        colorSeleccionado: Color = naranjaClaro,
+        colorTexto: Color = blanco
+    ) {
+        ScrollableTabRow(
+            selectedTabIndex = seleccionarCalculadora,
+            containerColor = colorFondo,
+            contentColor = colorSeleccionado,
+            edgePadding = 8.dp
+        ) {
+            listOf(
+                "Prestamos" to Icons.Default.AttachMoney,
+                "Division gastos" to Icons.Default.Groups,
+                "Retorno inversion" to Icons.Default.TrendingUp,
+                "Inflacion" to Icons.Default.Timeline
+            ).forEachIndexed { index, (titulo, icono) ->
+                Tab(
+                    selected = seleccionarCalculadora == index,
+                    onClick = { onSeleccionarCalculadora(index) },
+                    text = {
+                        Text(
+                            text = titulo,
+                            color = if (seleccionarCalculadora == index) colorSeleccionado else colorTexto
+                        )
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = icono,
+                            contentDescription = titulo,
+                            tint = if (seleccionarCalculadora == index) colorSeleccionado else colorTexto
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    fun actualizarDatosPrestamo(nuevaCantidad: String, nuevaTasaAnual: String, nuevoPlazoMeses: String) {
+        _uiState.update { it.copy(cantidad = nuevaCantidad, tasaAnual = nuevaTasaAnual, plazoMeses = nuevoPlazoMeses) }
+    }
 
     /** metodo para calcular un prestamo basado en la cantidad, tasa de interes anual y plazo en meses*/
     fun calcularPrestamo(cantidad: Double, tasaAnual: Double, plazoMeses: Int, context: Context) {
@@ -74,6 +134,10 @@ class CalculadoraViewModel : ViewModel() {
         )}
     }
 
+    fun actualizarDatosDivisionGastos(cantidadTotal: Double, numeroPersonas: Int) {
+        _uiState.update { it.copy(cantidadTotal = cantidadTotal, numeroPersonas = numeroPersonas) }
+    }
+
     /** metodo para calcular la division de gastos entre varias personas*/
     fun calcularDivisionGastos(cantidadTotal: Double, numeroPersonas: Int, context: Context) {
 
@@ -91,6 +155,10 @@ class CalculadoraViewModel : ViewModel() {
             cantidadPorPersona = cantidadPorPersona,
             totalPersonas = numeroPersonas
         )}
+    }
+
+    fun actualizarDatosROI(nuevaGanancia: Double, nuevaInversion: Double) {
+        _uiState.update { it.copy(ganancia = nuevaGanancia, inversion = nuevaInversion) }
     }
 
     /** metodo para calcular el retorno de inversion (ROI)*/
@@ -112,6 +180,10 @@ class CalculadoraViewModel : ViewModel() {
         )}
     }
 
+    fun actualizarDatosInflacion(cantidadInflacion: Double, tasa: Double, años: Int) {
+        _uiState.update { it.copy(cantidadAjustadaInflacion = cantidadInflacion, tasaInflacion = tasa, años = años) }
+    }
+
     /**metodo para calcular el efecto de la inflacion en una cantidad a lo largo del tiempo*/
     fun calcularInflacion(montoOriginal: Double, tasaInflacion: Double, años: Int, context: Context) {
 
@@ -129,7 +201,7 @@ class CalculadoraViewModel : ViewModel() {
 
         //actualizoz el estado de la UI con los datos calculados
         _uiState.update { it.copy(
-            montoAjustadoInflacion = cantidadFinal.roundToDecimal(2),
+            cantidadAjustadaInflacion = cantidadFinal.roundToDecimal(2),
             perdidaPoderAdquisitivo = perdidaPoder.roundToDecimal(2)
         )}
     }

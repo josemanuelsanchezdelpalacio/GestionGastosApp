@@ -2,7 +2,6 @@ package com.dam2jms.gestiongastosapp.screens
 
 import ItemComponents.SelectorCategoria
 import android.os.Build
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -32,28 +31,26 @@ import com.dam2jms.gestiongastosapp.data.CategoriaAPI
 import com.dam2jms.gestiongastosapp.models.AddTransactionViewModel
 import com.dam2jms.gestiongastosapp.models.AuxViewModel
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
-import com.dam2jms.gestiongastosapp.states.TransactionUiState
 import com.dam2jms.gestiongastosapp.states.UiState
 import com.dam2jms.gestiongastosapp.ui.theme.*
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTransactionScreen(
-    navController: NavController,
-    auxViewModel: AuxViewModel,
-    mvvm: AddTransactionViewModel
-) {
+fun AddTransactionScreen(navController: NavController, auxViewModel: AuxViewModel, mvvm: AddTransactionViewModel) {
+
     val uiState by mvvm.uiState.collectAsState()
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+
+    //selecciono la fecha teniendo la actual por defecto
+    var seleccionarFecha by remember { mutableStateOf(LocalDate.now()) }
+
+    //obtengo las categorias de la clase Categoria
     var categorias by remember { mutableStateOf<List<Categoria>>(emptyList()) }
 
-    // Cargar las categorías cuando se cambia el tipo de transacción
+    //cargo las categorias cuando se cambia el tipo de transaccion
     LaunchedEffect(uiState.tipo) {
         categorias = CategoriaAPI.obtenerCategorias(uiState.tipo)
     }
@@ -63,7 +60,7 @@ fun AddTransactionScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "AÑADIR TRANSACCIÓN",
+                        "AÑADIR TRANSACCION",
                         style = MaterialTheme.typography.headlineSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = blanco
@@ -74,13 +71,14 @@ fun AddTransactionScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBackIos, "Atrás", tint = blanco)
+                        Icon(Icons.Default.ArrowBackIos, "atras", tint = blanco)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colorFondo)
             )
         },
         bottomBar = {
+            //barra inferior reutilizable con secciones
             BottomAppBarReutilizable(
                 navController = navController,
                 screenActual = AppScreen.AddTransactionScreen,
@@ -95,28 +93,10 @@ fun AddTransactionScreen(
             paddingValues = paddingValues,
             uiState = uiState,
             mvvm = mvvm,
-            selectedDate = selectedDate,
-            onDateSelected = { newDate -> selectedDate = newDate },
-            categorias = categorias,
-            onCategorySelected = { categoria ->
-                mvvm.actualizarDatosTransaccion(uiState.cantidad.toString(), categoria, uiState.tipo)
-            },
-            onAddTransaction = {
-                if (uiState.cantidad > 0 && uiState.categoria.isNotEmpty() && uiState.tipo.isNotEmpty()) {
-                    val transaccion = TransactionUiState(
-                        cantidad = uiState.cantidad,
-                        categoria = uiState.categoria,
-                        tipo = uiState.tipo,
-                        fecha = selectedDate.format(DateTimeFormatter.ISO_DATE)
-                    )
-                    scope.launch {
-                        mvvm.crearTransaccion(transaccion, context)
-                        navController.navigate(AppScreen.TransactionScreen.createRoute(selectedDate.toString()))
-                    }
-                } else {
-                    Toast.makeText(context, "Complete todos los campos", Toast.LENGTH_SHORT).show()
-                }
-            }
+            navController = navController,
+            seleccionarFecha = seleccionarFecha,
+            fechaSeleccionada = { newDate -> seleccionarFecha = newDate },
+            categorias = categorias
         )
     }
 }
@@ -128,13 +108,18 @@ fun AddTransactionBody(
     paddingValues: PaddingValues,
     uiState: UiState,
     mvvm: AddTransactionViewModel,
-    selectedDate: LocalDate,
-    onDateSelected: (LocalDate) -> Unit,
-    categorias: List<Categoria>,
-    onCategorySelected: (String) -> Unit,
-    onAddTransaction: () -> Unit
+    navController: NavController,
+    seleccionarFecha: LocalDate,
+    fechaSeleccionada: (LocalDate) -> Unit,
+    categorias: List<Categoria>
 ) {
-    val context = LocalContext.current // Mover el contexto aquí para que sea accesible
+
+    val context = LocalContext.current
+
+    //llamo al metodo para seleccionar una categoria
+    val categoriaSeleccionada: (String) -> Unit = { categoria ->
+        mvvm.actualizarDatosTransaccion(uiState.cantidad.toString(), categoria, uiState.tipo)
+    }
 
     Column(
         modifier = Modifier
@@ -145,7 +130,6 @@ fun AddTransactionBody(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Card para la transacción
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -155,15 +139,13 @@ fun AddTransactionBody(
             colors = CardDefaults.cardColors(containerColor = colorFondo),
             border = BorderStroke(2.dp, naranjaClaro)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                // Fila para seleccionar tipo de transacción
+            Column(modifier = Modifier.padding(16.dp)) {
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // Botón de Ingreso
+                    //botones para seleccionar el tipo de transaccion
                     Button(
                         onClick = { mvvm.actualizarDatosTransaccion(uiState.cantidad.toString(), uiState.categoria, "ingreso") },
                         colors = ButtonDefaults.buttonColors(containerColor = verde),
@@ -176,7 +158,6 @@ fun AddTransactionBody(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Botón de Gasto
                     Button(
                         onClick = { mvvm.actualizarDatosTransaccion(uiState.cantidad.toString(), uiState.categoria, "gasto") },
                         colors = ButtonDefaults.buttonColors(containerColor = rojo),
@@ -190,9 +171,9 @@ fun AddTransactionBody(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Campo para la cantidad
                 Text("Cantidad", color = grisClaro, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = uiState.cantidad.toString(),
                     onValueChange = { nuevaCantidad ->
@@ -210,31 +191,29 @@ fun AddTransactionBody(
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = if (uiState.tipo == "ingreso") verde else rojo,
-                        unfocusedBorderColor = grisClaro,
-                        focusedLabelColor = if (uiState.tipo == "ingreso") verde else rojo,
-                        unfocusedLabelColor = grisClaro
+                        unfocusedBorderColor = grisClaro
                     )
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Campo para la categoría
-                Text("Categoría", color = grisClaro, style = MaterialTheme.typography.bodyMedium)
+                Text("Categoria", color = grisClaro, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
+
+                //para la lista de categorias
                 SelectorCategoria(
                     categorias = categorias,
-                    selectedCategory = uiState.categoria,
-                    onCategorySelected = onCategorySelected
+                    categoriaSeleccionada = uiState.categoria,
+                    onCategorySelected = categoriaSeleccionada,
+                    tipo = uiState.tipo
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Campo para la fecha
                 Text("Fecha", color = grisClaro, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedButton(
-                    onClick = {
-                        showDatePicker(context, selectedDate) { nuevaFecha -> onDateSelected(nuevaFecha) }
+                    onClick = { showDatePicker(context, seleccionarFecha, fechaSeleccionada)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -244,8 +223,9 @@ fun AddTransactionBody(
                 ) {
                     Icon(Icons.Default.DateRange, contentDescription = "Seleccionar fecha")
                     Spacer(modifier = Modifier.width(8.dp))
+
                     Text(
-                        selectedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                        seleccionarFecha.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
                         color = if (uiState.tipo == "ingreso") verde else rojo
                     )
                 }
@@ -254,9 +234,13 @@ fun AddTransactionBody(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Botón de añadir transacción
+        //boton para añadir la transaccion
         Button(
-            onClick = onAddTransaction,
+            onClick = {
+                mvvm.añadirTransaccion(context, seleccionarFecha) { route ->
+                    navController.navigate(AppScreen.TransactionScreen.createRoute(route))
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -267,12 +251,14 @@ fun AddTransactionBody(
         ) {
             Icon(Icons.Default.Add, "Añadir")
             Spacer(modifier = Modifier.width(8.dp))
+
             Text(
-                "Añadir Transacción",
+                text = "Añadir Transaccion",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
         }
     }
 }
+
 
 

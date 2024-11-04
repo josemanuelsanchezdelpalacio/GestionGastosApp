@@ -17,14 +17,15 @@ data class Categoria(val id: String, val nombre: String, val tipo: String)
 
 object CategoriaAPI {
 
-    /** Constantes para tipos de categorías */
+    /**constantes para los tipos de categorias */
     object TipoCategoria {
         const val INGRESO = "ingreso"
         const val GASTO = "gasto"
     }
 
-    /** Método para obtener una lista de categorías según el tipo (ingreso o gasto) */
+    /**metodo para obtener una lista de categorias segun el tipo (ingreso o gasto) */
     fun obtenerCategorias(tipo: String): List<Categoria> {
+
         return when (tipo) {
             TipoCategoria.INGRESO -> listOf(
                 Categoria(id = "1", nombre = "reembolso", tipo = TipoCategoria.INGRESO),
@@ -34,7 +35,7 @@ object CategoriaAPI {
             TipoCategoria.GASTO -> listOf(
                 Categoria(id = "4", nombre = "casa", tipo = TipoCategoria.GASTO),
                 Categoria(id = "5", nombre = "ropa", tipo = TipoCategoria.GASTO),
-                Categoria(id = "6", nombre = "educación", tipo = TipoCategoria.GASTO),
+                Categoria(id = "6", nombre = "educacion", tipo = TipoCategoria.GASTO),
                 Categoria(id = "7", nombre = "entretenimiento", tipo = TipoCategoria.GASTO),
                 Categoria(id = "8", nombre = "regalo", tipo = TipoCategoria.GASTO),
                 Categoria(id = "9", nombre = "mascota", tipo = TipoCategoria.GASTO),
@@ -42,14 +43,14 @@ object CategoriaAPI {
                 Categoria(id = "11", nombre = "otros", tipo = TipoCategoria.GASTO)
             )
             else -> {
-                println("Tipo de categoría no válido: $tipo")
+                println("Tipo de categoria no valido: $tipo")
                 emptyList()
             }
         }
     }
 }
 
-/** Método para añadir un icono a cada categoría */
+/**metodo para añadir un icono a cada categoría */
 fun obtenerIconoCategoria(nombreCategoria: String): ImageVector {
     return when (nombreCategoria.lowercase()) {
         "reembolso" -> Icons.Default.MonetizationOn
@@ -64,4 +65,5 @@ fun obtenerIconoCategoria(nombreCategoria: String): ImageVector {
         else -> Icons.Default.Category
     }
 }
+
 

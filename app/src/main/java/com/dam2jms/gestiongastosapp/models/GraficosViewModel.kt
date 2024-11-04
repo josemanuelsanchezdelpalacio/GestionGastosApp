@@ -1,3 +1,5 @@
+package com.dam2jms.gestiongastosapp.models
+
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
@@ -115,7 +117,7 @@ class GraficosViewModel : ViewModel() {
                 balanceTotal = balanceTotal,
                 ratioAhorro = ratioAhorro,
                 gastosPrincipales = gastosPrincipales,
-                selectedRangoTiempo = rangoTiempo
+                seleccionarRangoTiempo = rangoTiempo
             )
         }
     }

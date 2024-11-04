@@ -2,37 +2,21 @@ package com.dam2jms.gestiongastosapp.components
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.dam2jms.gestiongastosapp.data.Categoria
-import com.dam2jms.gestiongastosapp.data.CategoriaAPI
 import com.dam2jms.gestiongastosapp.ui.theme.azul
 import com.dam2jms.gestiongastosapp.ui.theme.blanco
 import com.dam2jms.gestiongastosapp.ui.theme.colorFondo
-import com.dam2jms.gestiongastosapp.ui.theme.coloresGastos
-import com.dam2jms.gestiongastosapp.ui.theme.coloresIngresos
 import com.dam2jms.gestiongastosapp.ui.theme.grisClaro
 import com.dam2jms.gestiongastosapp.ui.theme.naranjaClaro
 import com.dam2jms.gestiongastosapp.ui.theme.rojo
 import com.dam2jms.gestiongastosapp.ui.theme.verde
-import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.PieChart
@@ -291,9 +275,11 @@ fun GraficoCircularIngresos(datosIngresos: Map<String, Double>, modifier: Modifi
             PieChart(context).apply {
                 description.isEnabled = false
                 setUsePercentValues(true)
+                //margenes internos
                 setExtraOffsets(5f, 10f, 5f, 5f)
                 setBackgroundColor(colorFondo.toArgb())
 
+                //configuraciones del radio del circulo
                 isDrawHoleEnabled = true
                 setHoleColor(colorFondo.toArgb())
                 setTransparentCircleColor(blanco.toArgb())
@@ -301,6 +287,7 @@ fun GraficoCircularIngresos(datosIngresos: Map<String, Double>, modifier: Modifi
                 holeRadius = 40f
                 transparentCircleRadius = 45f
 
+                //configuraciones para la leyenda
                 legend.apply {
                     verticalAlignment = Legend.LegendVerticalAlignment.BOTTOM
                     horizontalAlignment = Legend.LegendHorizontalAlignment.CENTER
@@ -314,11 +301,14 @@ fun GraficoCircularIngresos(datosIngresos: Map<String, Double>, modifier: Modifi
             }
         },
         update = { grafico ->
+
+            //mapeo los datos en entradas para el grafico
             val entradas = datosIngresos.map { (categoria, valor) ->
                 PieEntry(valor.toFloat(), categoria)
             }
 
-            val dataSet = PieDataSet(entradas, "Ingresos").apply {
+            //junto los datos de ingresos y les doy un color a las categorias
+            val conjuntoDatos = PieDataSet(entradas, "Ingresos").apply {
                 this.colors = listOf(verde.toArgb(), azul.toArgb(), naranjaClaro.toArgb())
                 yValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
                 valueTextSize = 10f
@@ -326,20 +316,24 @@ fun GraficoCircularIngresos(datosIngresos: Map<String, Double>, modifier: Modifi
                 selectionShift = 5f
             }
 
-            val data = PieData(dataSet).apply {
+            //formateo los datos
+            val dato = PieData(conjuntoDatos).apply {
                 setValueFormatter(PercentFormatter(grafico))
                 setValueTextSize(10f)
                 setValueTextColor(blanco.toArgb())
             }
 
-            grafico.data = data
+            //pongo los datos en el grafico
+            grafico.data = dato
             grafico.invalidate()
         }
     )
 }
 
+//lo mismo que el anterior pero para los datos de ingresos
 @Composable
 fun GraficoCircularGastos(datosGastos: Map<String, Double>, modifier: Modifier = Modifier) {
+
     AndroidView(
         modifier = modifier
             .fillMaxWidth()
@@ -363,6 +357,7 @@ fun GraficoCircularGastos(datosGastos: Map<String, Double>, modifier: Modifier =
                     verticalAlignment = Legend.LegendVerticalAlignment.BOTTOM
                     horizontalAlignment = Legend.LegendHorizontalAlignment.CENTER
                     orientation = Legend.LegendOrientation.HORIZONTAL
+                    //leyenda fuera del grafico
                     setDrawInside(false)
                     textSize = 10f
                     textColor = blanco.toArgb()
@@ -372,11 +367,13 @@ fun GraficoCircularGastos(datosGastos: Map<String, Double>, modifier: Modifier =
             }
         },
         update = { grafico ->
+
+            //mapeo las entradas en datos
             val entradas = datosGastos.map { (categoria, valor) ->
                 PieEntry(valor.toFloat(), categoria)
             }
 
-            val dataSet = PieDataSet(entradas, "Gastos").apply {
+            val conjuntoDatos = PieDataSet(entradas, "Gastos").apply {
                 this.colors = listOf(rojo.toArgb(), grisClaro.toArgb(), naranjaClaro.toArgb())
                 yValuePosition = PieDataSet.ValuePosition.OUTSIDE_SLICE
                 valueTextSize = 10f
@@ -384,13 +381,13 @@ fun GraficoCircularGastos(datosGastos: Map<String, Double>, modifier: Modifier =
                 selectionShift = 5f
             }
 
-            val data = PieData(dataSet).apply {
+            val dato = PieData(conjuntoDatos).apply {
                 setValueFormatter(PercentFormatter(grafico))
                 setValueTextSize(10f)
                 setValueTextColor(blanco.toArgb())
             }
 
-            grafico.data = data
+            grafico.data = dato
             grafico.invalidate()
         }
     )

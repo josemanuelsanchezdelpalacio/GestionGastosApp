@@ -1,4 +1,7 @@
+package com.dam2jms.gestiongastosapp.screens
+
 import ItemComponents.SelectorMoneda
+import ItemComponents.TransaccionItem
 import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -16,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -26,6 +30,7 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -38,7 +43,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
@@ -49,6 +53,7 @@ import androidx.navigation.NavController
 import com.dam2jms.gestiongastosapp.components.BottomAppBarReutilizable
 import com.dam2jms.gestiongastosapp.components.DatePickerComponents.showDatePicker
 import com.dam2jms.gestiongastosapp.models.AuxViewModel
+import com.dam2jms.gestiongastosapp.models.HomeViewModel
 import com.dam2jms.gestiongastosapp.models.MonedasViewModel
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
 import com.dam2jms.gestiongastosapp.states.TransactionUiState
@@ -61,7 +66,6 @@ import com.dam2jms.gestiongastosapp.ui.theme.naranjaClaro
 import com.dam2jms.gestiongastosapp.ui.theme.rojo
 import com.dam2jms.gestiongastosapp.ui.theme.verde
 import java.time.LocalDate
-import java.time.format.DateTimeParseException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,12 +94,17 @@ fun HomeScreen(
                         textAlign = TextAlign.Center
                     )
                 },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBackIos, "atras", tint = blanco)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colorFondo),
                 actions = {
                     IconButton(onClick = { mostrarListaMonedas = true }) {
                         Icon(
                             Icons.Filled.MonetizationOn,
-                            contentDescription = "Cambiar Moneda",
+                            contentDescription = "Cambiar moneda",
                             tint = blanco
                         )
                     }
@@ -112,19 +121,17 @@ fun HomeScreen(
             )
         },
         containerColor = colorFondo
-    ) { innerPadding ->
+    ) { paddingValues ->
         homeScreenBody(
-            innerPadding,
-            uiState,
-            context,
-            monedasViewModel,
-            homeViewModel,
-            mostrarListaMonedas,
+            paddingValues = paddingValues,
+            uiState = uiState,
+            context = context,
+            monedasViewModel = monedasViewModel,
+            homeViewModel = homeViewModel,
+            mostrarListaMonedas = mostrarListaMonedas,
             onDismiss = { mostrarListaMonedas = false },
-            onCurrencySelected = { monedaSeleccionada ->
-                homeViewModel.actualizarMoneda(monedaSeleccionada)
-                mostrarListaMonedas = false
-            }
+            navController = navController,
+            onEliminar = { transaccionId -> auxViewModel.eliminarTransaccionExistente(uiState.tipo, transaccionId, context) }
         )
     }
 }
@@ -132,30 +139,38 @@ fun HomeScreen(
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun homeScreenBody(
-    innerPadding: PaddingValues,
+    paddingValues: PaddingValues,
     uiState: UiState,
     context: Context,
     monedasViewModel: MonedasViewModel,
     homeViewModel: HomeViewModel,
     mostrarListaMonedas: Boolean,
     onDismiss: () -> Unit,
-    onCurrencySelected: (String) -> Unit
+    navController: NavController,
+    onEliminar: (String) -> Unit
 ) {
+
+    val monedaSeleccionada: (String) -> Unit = { selectedMoneda ->
+        homeViewModel.actualizarMoneda(selectedMoneda)
+        onDismiss()
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding)
+            .padding(paddingValues)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item { balanceCard(uiState) }
+        item { metasCard(homeViewModel, context) }
         item {
-            balanceCard(uiState)
-        }
-        item {
-            metasCard(homeViewModel, context)
-        }
-        item {
-            transaccionesRecientesCard(uiState.transaccionesRecientes, uiState.monedaActual)
+            transaccionesRecientesCard(
+                transacciones = uiState.transaccionesRecientes,
+                monedaActual = uiState.monedaActual,
+                navController = navController,
+                onEliminar = onEliminar
+            )
         }
     }
 
@@ -163,13 +178,14 @@ fun homeScreenBody(
         SelectorMoneda(
             monedasViewModel = monedasViewModel,
             onDismiss = onDismiss,
-            monedaSeleccionada = onCurrencySelected
+            monedaSeleccionada = monedaSeleccionada
         )
     }
 }
 
 @Composable
 fun balanceCard(uiState: UiState) {
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -191,7 +207,7 @@ fun balanceCard(uiState: UiState) {
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Balance total
+            //cantidad total de ingresos
             Text(
                 text = "${uiState.monedaActual} ${String.format("%,.2f", uiState.balanceTotal)}",
                 color = blanco,
@@ -199,7 +215,7 @@ fun balanceCard(uiState: UiState) {
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Ingresos y gastos
+            //ingresos y gastos por separado
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -211,11 +227,13 @@ fun balanceCard(uiState: UiState) {
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
+
                     Text("Diarios: ${String.format("%,.2f", uiState.ingresosDiarios)}", color = verde, style = MaterialTheme.typography.bodyMedium)
                     Text("Mensuales: ${String.format("%,.2f", uiState.ingresosMensuales)}", color = verde, style = MaterialTheme.typography.bodyMedium)
                     Text("Anuales: ${String.format("%,.2f", uiState.ingresosAnuales)}", color = verde, style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(modifier = Modifier.width(16.dp)) // Espacio entre columnas
+
                 Column {
                     Text(
                         "Gastos",
@@ -223,6 +241,7 @@ fun balanceCard(uiState: UiState) {
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
+
                     Text("Diarios: ${String.format("%,.2f", uiState.gastosDiarios)}", color = rojo, style = MaterialTheme.typography.bodyMedium)
                     Text("Mensuales: ${String.format("%,.2f", uiState.gastosMensuales)}", color = rojo, style = MaterialTheme.typography.bodyMedium)
                     Text("Anuales: ${String.format("%,.2f", uiState.gastosAnuales)}", color = rojo, style = MaterialTheme.typography.bodyMedium)
@@ -231,9 +250,10 @@ fun balanceCard(uiState: UiState) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Ahorros
+            //datos de ahorros
             Divider(color = blanco.copy(alpha = 0.5f), thickness = 1.dp) // Separador
             Spacer(modifier = Modifier.height(10.dp))
+
             Text(
                 text = "Ahorros totales: ${uiState.monedaActual} ${String.format("%,.2f", uiState.ahorrosTotales)}",
                 color = azul,
@@ -246,9 +266,10 @@ fun balanceCard(uiState: UiState) {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun metasCard(homeViewModel: HomeViewModel, context: Context) {
+
     val uiState by homeViewModel.uiState.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
-    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+    var fechaSeleccionada by remember { mutableStateOf<LocalDate?>(null) }
 
     Card(
         modifier = Modifier
@@ -272,16 +293,32 @@ fun metasCard(homeViewModel: HomeViewModel, context: Context) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (uiState.objetivoFinanciero > 0 && uiState.fechaObjetivo != null) {
-                // Mostrar meta establecida
+
                 Text("Meta Total: ${uiState.monedaActual} ${String.format("%,.2f", uiState.objetivoFinanciero)}", color = verde, style = MaterialTheme.typography.bodyMedium)
-                Text("Días Restantes: ${uiState.diasHastaMeta}", color = azul, style = MaterialTheme.typography.bodyMedium)
+                Text("Días restantes: ${uiState.diasHastaMeta}", color = azul, style = MaterialTheme.typography.bodyMedium)
                 Text("Ahorro diario necesario: ${String.format("%.2f", uiState.ahorroDiarioNecesario)} ${uiState.monedaActual}", color = grisClaro, style = MaterialTheme.typography.bodySmall)
+
+                //calculo el progreso actual
+                val progresoActual = uiState.balanceTotal
+                val objetivoFinanciero = uiState.objetivoFinanciero
+
+                //calculo el porcentaje de progreso
+                val porcentajeProgreso = if (objetivoFinanciero > 0) {
+                    (progresoActual / objetivoFinanciero * 100).coerceIn(0.0, 100.0)
+                } else { 0.0 }
+
+                //barra de progreso
+                LinearProgressIndicator(
+                    progress = (porcentajeProgreso / 100).toFloat(),
+                    modifier = Modifier.fillMaxWidth().height(8.dp),
+                    color = verde,
+                    trackColor = grisClaro
+                )
 
                 if (uiState.estadoMeta.isNotEmpty()) {
                     Text(uiState.estadoMeta, color = if (uiState.estadoMeta.startsWith("¡")) verde else naranjaClaro, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
                 }
             } else {
-                // Mensaje cuando no hay meta establecida
                 Text("No hay meta establecida", color = grisClaro, style = MaterialTheme.typography.bodyMedium)
             }
 
@@ -291,17 +328,17 @@ fun metasCard(homeViewModel: HomeViewModel, context: Context) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(onClick = { showDialog = true }, modifier = Modifier.weight(1f)) {
-                    Text(if (uiState.objetivoFinanciero > 0) "Modificar Meta" else "Establecer Meta")
+                    Text(if (uiState.objetivoFinanciero > 0) "Modificar meta" else "Establecer Meta")
                 }
                 if (uiState.objetivoFinanciero > 0) {
                     Button(
                         onClick = {
                             homeViewModel.eliminarMeta(context)
-                            selectedDate = null
+                            fechaSeleccionada = null
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = rojo)
                     ) {
-                        Text("Eliminar Meta")
+                        Text("Eliminar meta")
                     }
                 }
             }
@@ -309,53 +346,53 @@ fun metasCard(homeViewModel: HomeViewModel, context: Context) {
     }
 
     if (showDialog) {
-        var goalAmount by remember { mutableStateOf("") }
-        var errorMessage by remember { mutableStateOf("") }
+        var cantidadObjetivo by remember { mutableStateOf("") }
+        var mensajeError by remember { mutableStateOf("") }
 
         AlertDialog(
-            onDismissRequest = { showDialog = false; errorMessage = ""; goalAmount = "" },
-            title = { Text("Establecer Meta Financiera") },
+            onDismissRequest = { showDialog = false; mensajeError = ""; cantidadObjetivo = "" },
+            title = { Text("Establecer meta financiera") },
             text = {
                 Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     TextField(
-                        value = goalAmount,
-                        onValueChange = { goalAmount = it; errorMessage = "" },
+                        value = cantidadObjetivo,
+                        onValueChange = { cantidadObjetivo = it; mensajeError = "" },
                         label = { Text("Cantidad objetivo") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Button(
                         onClick = {
-                            showDatePicker(context, LocalDate.now()) { fecha -> selectedDate = fecha }
+                            showDatePicker(context, LocalDate.now()) { fecha -> fechaSeleccionada = fecha }
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(selectedDate?.toString() ?: "Seleccionar fecha")
+                        Text(fechaSeleccionada?.toString() ?: "Seleccionar fecha")
                     }
-                    if (errorMessage.isNotEmpty()) {
-                        Text(text = errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+
+                    if (mensajeError.isNotEmpty()) {
+                        Text(text = mensajeError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
             confirmButton = {
                 Button(onClick = {
-                    val amount = goalAmount.toDoubleOrNull()
+                    val canridad = cantidadObjetivo.toDoubleOrNull()
+
                     when {
-                        amount == null || amount <= 0 -> { errorMessage = "Por favor, introduce una cantidad válida" }
-                        selectedDate == null -> { errorMessage = "Por favor, selecciona una fecha" }
-                        selectedDate!!.isBefore(LocalDate.now()) -> { errorMessage = "La fecha debe ser posterior a hoy" }
+                        canridad == null || canridad <= 0 -> { mensajeError = "Por favor, introduce una cantidad válida" }
+                        fechaSeleccionada == null -> { mensajeError = "Por favor, selecciona una fecha" }
+                        fechaSeleccionada!!.isBefore(LocalDate.now()) -> { mensajeError = "La fecha debe ser posterior a hoy" }
                         else -> {
-                            homeViewModel.establecerMetaFinanciera(amount, selectedDate!!)
+                            homeViewModel.establecerMetaFinanciera(canridad, fechaSeleccionada!!)
                             showDialog = false
-                            goalAmount = ""
-                            errorMessage = ""
+                            cantidadObjetivo = ""
+                            mensajeError = ""
                         }
                     }
-                }) {
-                    Text("Confirmar")
-                }
+                }) { Text("Confirmar") }
             },
             dismissButton = {
-                Button(onClick = { showDialog = false; errorMessage = ""; goalAmount = "" }) {
+                Button(onClick = { showDialog = false; mensajeError = ""; cantidadObjetivo = "" }) {
                     Text("Cancelar")
                 }
             }
@@ -363,9 +400,14 @@ fun metasCard(homeViewModel: HomeViewModel, context: Context) {
     }
 }
 
-
 @Composable
-fun transaccionesRecientesCard(transacciones: List<TransactionUiState>, monedaActual: String) {
+fun transaccionesRecientesCard(
+    transacciones: List<TransactionUiState>,
+    monedaActual: String,
+    navController: NavController,
+    onEliminar: (String) -> Unit
+) {
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -387,11 +429,18 @@ fun transaccionesRecientesCard(transacciones: List<TransactionUiState>, monedaAc
             )
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Listar transacciones recientes
             if (transacciones.isNotEmpty()) {
                 for (transaccion in transacciones) {
-                    TransaccionItem(transaccion, monedaActual)
-                }
+                    TransaccionItem(
+                        transaccion = transaccion,
+                        monedaActual = monedaActual,
+                        navController = navController,
+                        onEliminar = onEliminar,
+                        onClick = {
+                            // Manejo de clic en la transacción, redirigir a la pantalla de edición
+                            navController.navigate(AppScreen.EditTransactionScreen.createRoute(transaccion.id))
+                        }
+                    )                }
             } else {
                 Text(
                     "No hay transacciones recientes.",
@@ -402,32 +451,3 @@ fun transaccionesRecientesCard(transacciones: List<TransactionUiState>, monedaAc
         }
     }
 }
-
-@Composable
-fun TransaccionItem(transaccion: TransactionUiState, monedaActual: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column {
-            Text(
-                transaccion.descripcion,
-                color = blanco,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                transaccion.fecha.toString(),
-                color = grisClaro,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-        Text(
-            "${monedaActual} ${String.format("%,.2f", transaccion.cantidad)}",
-            color = if (transaccion.cantidad < 0) rojo else verde,
-            style = MaterialTheme.typography.bodyMedium
-        )
-    }
-}
-

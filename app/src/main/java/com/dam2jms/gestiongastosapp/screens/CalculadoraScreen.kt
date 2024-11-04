@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -32,15 +33,12 @@ import java.util.Locale
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalculadoraScreen(
-    navController: NavController,
-    calculadoraViewModel: CalculadoraViewModel,
-    auxViewModel: AuxViewModel
-) {
+fun CalculadoraScreen(navController: NavController, calculadoraViewModel: CalculadoraViewModel, auxViewModel: AuxViewModel) {
+
     val uiState by calculadoraViewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    var selectedCalculator by remember { mutableStateOf(0) }
+    var seleccionarCalculadora by remember { mutableStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -59,12 +57,13 @@ fun CalculadoraScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colorFondo),
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(imageVector = Icons.Default.ArrowBackIosNew, contentDescription = "Atrás", tint = blanco)
+                        Icon(imageVector = Icons.Default.ArrowBackIosNew, contentDescription = "atras", tint = blanco)
                     }
                 }
             )
         },
         bottomBar = {
+            //barra inferior con las pantallas
             BottomAppBarReutilizable(
                 navController = navController,
                 screenActual = AppScreen.CalculadoraScreen,
@@ -81,36 +80,21 @@ fun CalculadoraScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Selector de calculadora
+            //barra superior con las distintas calculadoras
             item {
-                ScrollableTabRow(
-                    selectedTabIndex = selectedCalculator,
-                    containerColor = colorFondo,
-                    contentColor = naranjaClaro,
-                    edgePadding = 8.dp
-                ) {
-                    listOf(
-                        "Préstamos" to Icons.Default.AttachMoney,
-                        "División Gastos" to Icons.Default.Groups,
-                        "ROI" to Icons.Default.TrendingUp,
-                        "Inflación" to Icons.Default.Timeline
-                    ).forEachIndexed { index, (titulo, icono) ->
-                        Tab(
-                            selected = selectedCalculator == index,
-                            onClick = { selectedCalculator = index },
-                            text = { Text(text = titulo, color = if (selectedCalculator == index) naranjaClaro else colorFondo) },
-                            icon = {
-                                Icon(imageVector = icono, contentDescription = titulo, tint = if (selectedCalculator == index) naranjaClaro else blanco)
-                            }
-                        )
-                    }
-                }
+                calculadoraViewModel.calculadoraSelector(
+                    seleccionarCalculadora = seleccionarCalculadora,
+                    onSeleccionarCalculadora = { seleccionarCalculadora = it },
+                    colorFondo = colorFondo,
+                    colorSeleccionado = naranjaClaro,
+                    colorTexto = blanco
+                )
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Calculadoras
+            //ventanas para cada calculadora
             item {
-                when (selectedCalculator) {
+                when (seleccionarCalculadora) {
                     0 -> PrestamoCalculator(uiState, calculadoraViewModel, context)
                     1 -> DivisionGastosCalculator(uiState, calculadoraViewModel, context)
                     2 -> ROICalculator(uiState, calculadoraViewModel, context)
@@ -123,14 +107,8 @@ fun CalculadoraScreen(
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun PrestamoCalculator(
-    uiState: CalculadoraUiState,
-    viewModel: CalculadoraViewModel,
-    context: Context
-) {
-    var monto by remember { mutableStateOf("") }
-    var tasaAnual by remember { mutableStateOf("") }
-    var plazoMeses by remember { mutableStateOf("") }
+fun PrestamoCalculator(uiState: CalculadoraUiState, viewModel: CalculadoraViewModel, context: Context) {
+
     val cambiarMoneda = NumberFormat.getCurrencyInstance(Locale("es", "ES"))
 
     Card(
@@ -145,16 +123,16 @@ fun PrestamoCalculator(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                "Calculadora de Préstamos",
+                "Calculadora de prestamos",
                 style = MaterialTheme.typography.titleMedium,
                 color = naranjaClaro
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = monto,
-                onValueChange = { monto = it },
-                label = { Text("Monto del préstamo", color = blanco) },
+                value = uiState.cantidad,
+                onValueChange = { viewModel.actualizarDatosPrestamo(it, uiState.tasaAnual, uiState.plazoMeses) },
+                label = { Text("Monto del prestamo", color = blanco) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = naranjaClaro,
@@ -165,8 +143,8 @@ fun PrestamoCalculator(
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = tasaAnual,
-                onValueChange = { tasaAnual = it },
+                value = uiState.tasaAnual,
+                onValueChange = { viewModel.actualizarDatosPrestamo(uiState.cantidad, it, uiState.plazoMeses) },
                 label = { Text("Tasa anual (%)", color = blanco) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -178,8 +156,8 @@ fun PrestamoCalculator(
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = plazoMeses,
-                onValueChange = { plazoMeses = it },
+                value = uiState.plazoMeses,
+                onValueChange = { viewModel.actualizarDatosPrestamo(uiState.cantidad, uiState.tasaAnual, it) },
                 label = { Text("Plazo en meses", color = blanco) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -193,9 +171,9 @@ fun PrestamoCalculator(
             Button(
                 onClick = {
                     viewModel.calcularPrestamo(
-                        monto.toDoubleOrNull() ?: 0.0,
-                        tasaAnual.toDoubleOrNull() ?: 0.0,
-                        plazoMeses.toIntOrNull() ?: 0,
+                        uiState.cantidad.toDoubleOrNull() ?: 0.0,
+                        uiState.tasaAnual.toDoubleOrNull() ?: 0.0,
+                        uiState.plazoMeses.toIntOrNull() ?: 0,
                         context = context
                     )
                 },
@@ -218,11 +196,10 @@ fun PrestamoCalculator(
                     )
                 }
 
-                // Tabla de amortización
                 if (uiState.tablaPrestamo.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Tabla de amortización",
+                        "Tabla de amortizacion",
                         style = MaterialTheme.typography.titleSmall,
                         color = naranjaClaro
                     )
@@ -254,8 +231,6 @@ fun DivisionGastosCalculator(
     viewModel: CalculadoraViewModel,
     context: Context
 ) {
-    var montoTotal by remember { mutableStateOf("") }
-    var numeroPersonas by remember { mutableStateOf("") }
     val cambiarMoneda = NumberFormat.getCurrencyInstance(Locale("es", "ES"))
 
     Card(
@@ -270,16 +245,19 @@ fun DivisionGastosCalculator(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                "División de Gastos",
+                "Division de gastos",
                 style = MaterialTheme.typography.titleMedium,
                 color = naranjaClaro
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = montoTotal,
-                onValueChange = { montoTotal = it },
-                label = { Text("Monto total", color = blanco) },
+                value = uiState.cantidadTotal.toString(),
+                onValueChange = {
+                    val newCantidadTotal = it.toDoubleOrNull() ?: 0.0
+                    viewModel.actualizarDatosDivisionGastos(newCantidadTotal, uiState.numeroPersonas)
+                },
+                label = { Text("Cantidad total", color = blanco) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = naranjaClaro,
@@ -290,8 +268,11 @@ fun DivisionGastosCalculator(
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = numeroPersonas,
-                onValueChange = { numeroPersonas = it },
+                value = uiState.numeroPersonas.toString(),
+                onValueChange = {
+                    val newNumeroPersonas = it.toIntOrNull() ?: 0
+                    viewModel.actualizarDatosDivisionGastos(uiState.cantidadTotal, newNumeroPersonas)
+                },
                 label = { Text("Número de personas", color = blanco) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -305,9 +286,9 @@ fun DivisionGastosCalculator(
             Button(
                 onClick = {
                     viewModel.calcularDivisionGastos(
-                        montoTotal.toDoubleOrNull() ?: 0.0,
-                        numeroPersonas.toIntOrNull() ?: 0,
-                        context = context
+                        uiState.cantidadTotal,
+                        uiState.numeroPersonas,
+                        context
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -329,13 +310,7 @@ fun DivisionGastosCalculator(
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun ROICalculator(
-    uiState: CalculadoraUiState,
-    viewModel: CalculadoraViewModel,
-    context: Context
-) {
-    var ganancia by remember { mutableStateOf("") }
-    var inversion by remember { mutableStateOf("") }
+fun ROICalculator(uiState: CalculadoraUiState, viewModel: CalculadoraViewModel, context: Context) {
 
     Card(
         modifier = Modifier
@@ -356,8 +331,11 @@ fun ROICalculator(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = ganancia,
-                onValueChange = { ganancia = it },
+                value = uiState.ganancia.toString(),
+                onValueChange = {
+                    val nuevaGanancia = it.toDoubleOrNull() ?: 0.0
+                    viewModel.actualizarDatosROI(nuevaGanancia, uiState.inversion)
+                },
                 label = { Text("Ganancia obtenida", color = blanco) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -369,8 +347,11 @@ fun ROICalculator(
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = inversion,
-                onValueChange = { inversion = it },
+                value = uiState.inversion.toString(),
+                onValueChange = {
+                    val nuevaInversion = it.toDoubleOrNull() ?: 0.0
+                    viewModel.actualizarDatosROI(uiState.ganancia, nuevaInversion)
+                },
                 label = { Text("Inversión inicial", color = blanco) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -384,8 +365,8 @@ fun ROICalculator(
             Button(
                 onClick = {
                     viewModel.calcularROI(
-                        ganancia.toDoubleOrNull() ?: 0.0,
-                        inversion.toDoubleOrNull() ?: 0.0,
+                        uiState.ganancia,
+                        uiState.inversion,
                         context = context
                     )
                 },
@@ -408,14 +389,7 @@ fun ROICalculator(
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun InflacionCalculator(
-    uiState: CalculadoraUiState,
-    viewModel: CalculadoraViewModel,
-    context: Context
-) {
-    var montoActual by remember { mutableStateOf("") }
-    var tasaInflacion by remember { mutableStateOf("") }
-    var anos by remember { mutableStateOf("") }
+fun InflacionCalculator(uiState: CalculadoraUiState, viewModel: CalculadoraViewModel, context: Context) {
 
     Card(
         modifier = Modifier
@@ -429,16 +403,19 @@ fun InflacionCalculator(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                "Calculadora de Inflación",
+                "Calculadora de inflacion",
                 style = MaterialTheme.typography.titleMedium,
                 color = naranjaClaro
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = montoActual,
-                onValueChange = { montoActual = it },
-                label = { Text("Monto actual", color = blanco) },
+                value = uiState.cantidadAjustadaInflacion.toString(),
+                onValueChange = {
+                    val nuevaCantidad = it.toDoubleOrNull() ?: 0.0
+                    viewModel.actualizarDatosInflacion(nuevaCantidad, uiState.tasaInflacion, uiState.años)
+                },
+                label = { Text("Cantidad actual", color = blanco) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = naranjaClaro,
@@ -449,8 +426,11 @@ fun InflacionCalculator(
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = tasaInflacion,
-                onValueChange = { tasaInflacion = it },
+                value = uiState.tasaInflacion.toString(),
+                onValueChange = {
+                    val nuevaTasa = it.toDoubleOrNull() ?: 0.0
+                    viewModel.actualizarDatosInflacion(uiState.cantidadAjustadaInflacion, nuevaTasa, uiState.años)
+                },
                 label = { Text("Tasa de inflación (%)", color = blanco) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -462,8 +442,11 @@ fun InflacionCalculator(
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = anos,
-                onValueChange = { anos = it },
+                value = uiState.años.toString(),
+                onValueChange = {
+                    val nuevoAño = it.toIntOrNull() ?: 0
+                    viewModel.actualizarDatosInflacion(uiState.cantidadAjustadaInflacion, uiState.tasaInflacion, nuevoAño)
+                },
                 label = { Text("Años", color = blanco) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -477,9 +460,9 @@ fun InflacionCalculator(
             Button(
                 onClick = {
                     viewModel.calcularInflacion(
-                        montoActual.toDoubleOrNull() ?: 0.0,
-                        tasaInflacion.toDoubleOrNull() ?: 0.0,
-                        anos.toIntOrNull() ?: 0,
+                        uiState.cantidadAjustadaInflacion,
+                        uiState.tasaInflacion,
+                        uiState.años,
                         context = context
                     )
                 },
@@ -489,13 +472,17 @@ fun InflacionCalculator(
                 Text("Calcular")
             }
 
-            if (uiState.montoFuturo > 0) {
+            if (uiState.cantidadAjustadaInflacion > 0) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Monto en el futuro: ${uiState.montoFuturo}",
+                    "Cantidad en el futuro: ${uiState.cantidadAjustadaInflacion}",
                     color = verde
                 )
             }
         }
     }
 }
+
+
+
+

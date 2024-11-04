@@ -1,5 +1,6 @@
 package com.dam2jms.gestiongastosapp.screens
 
+import ItemComponents.SelectorCategoria
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
@@ -40,6 +41,11 @@ fun HistoryScreen(navController: NavController, auxViewModel: AuxViewModel, mvvm
 
     val uiState by mvvm.uiState.collectAsState()
     val context = LocalContext.current
+
+    //leo las transacciones de firestore para que muestre la informacion
+    LaunchedEffect(Unit) {
+        auxViewModel.leerTransacciones(context)
+    }
 
     Scaffold(
         topBar = {
@@ -262,9 +268,9 @@ fun HistoryBodyScreen(
                 Text(buscarFecha.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
             }
         } else {
-            CategorySelector(
+            SelectorCategoria(
                 categorias = categorias,
-                selectedCategory = buscarCategoria,
+                categoriaSeleccionada = buscarCategoria,
                 onCategorySelected = { categoria ->
                     buscarCategoria = categoria
                 },

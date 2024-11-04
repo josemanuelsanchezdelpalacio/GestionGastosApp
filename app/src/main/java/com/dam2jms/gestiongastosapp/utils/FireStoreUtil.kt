@@ -117,22 +117,47 @@ object FireStoreUtil {
             .addOnFailureListener { exception -> onFailure(exception) }
     }
 
-    /**
-     * Método para eliminar una meta específica de Firestore.
-     *
-     * @param metaId ID de la meta a eliminar
-     * @param onSuccess Función a ejecutar en caso de éxito
-     * @param onFailure Función a ejecutar en caso de error
-     */
-    fun eliminarMeta(metaId: String, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
-        val userId = Firebase.auth.currentUser?.uid ?: return
 
-        db.collection("users")
-            .document(userId)
-            .collection("metas")
-            .document(metaId)
-            .delete()
-            .addOnSuccessListener { onSuccess() }
+    fun eliminarMetaFinanciera(
+        idUsuario: String,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        // Referencia al documento del usuario
+        val userRef = db.collection("users").document(idUsuario)
+
+        // Primero verificamos si el documento existe
+        userRef.get()
+            .addOnSuccessListener { documentSnapshot ->
+                if (documentSnapshot.exists()) {
+                    // El documento existe, procedemos a actualizar
+                    userRef.update(
+                        mapOf(
+                            "metaFinanciera" to 0.0,
+                            "fechaMeta" to null,
+                            "diasHastaMeta" to -1,
+                            "ahorroDiarioNecesario" to 0.0,
+                            "progresoMeta" to 0.0,
+                            "financialGoalId" to ""
+                        )
+                    )
+                        .addOnSuccessListener { onSuccess() }
+                        .addOnFailureListener { onFailure(it) }
+                } else {
+                    // Si el documento no existe, lo creamos con valores por defecto
+                    val defaultData = hashMapOf(
+                        "metaFinanciera" to 0.0,
+                        "fechaMeta" to null,
+                        "diasHastaMeta" to -1,
+                        "ahorroDiarioNecesario" to 0.0,
+                        "progresoMeta" to 0.0,
+                        "financialGoalId" to ""
+                    )
+                    userRef.set(defaultData)
+                        .addOnSuccessListener { onSuccess() }
+                        .addOnFailureListener { onFailure(it) }
+                }
+            }
             .addOnFailureListener { onFailure(it) }
     }
 

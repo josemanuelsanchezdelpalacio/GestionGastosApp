@@ -1,5 +1,6 @@
 package com.dam2jms.gestiongastosapp.screens
 
+import ItemComponents.SelectorCategoria
 import android.os.Build
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -18,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -31,7 +31,6 @@ import com.dam2jms.gestiongastosapp.components.BottomAppBarReutilizable
 import com.dam2jms.gestiongastosapp.components.DatePickerComponents.showDatePicker
 import com.dam2jms.gestiongastosapp.data.Categoria
 import com.dam2jms.gestiongastosapp.data.CategoriaAPI
-import com.dam2jms.gestiongastosapp.data.obtenerIconoCategoria
 import com.dam2jms.gestiongastosapp.models.EditTransactionViewModel
 import com.dam2jms.gestiongastosapp.models.AuxViewModel
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
@@ -94,7 +93,9 @@ fun EditTransactionBodyScreen(paddingValues: PaddingValues, navController: NavCo
 
     val uiState by mvvm.uiState.collectAsState()
     val context = LocalContext.current
+
     val scope = rememberCoroutineScope()
+
     var seleccionarFecha by remember { mutableStateOf(LocalDate.now()) }
     var categorias by remember { mutableStateOf<List<Categoria>>(emptyList()) }
 
@@ -147,7 +148,7 @@ fun EditTransactionBodyScreen(paddingValues: PaddingValues, navController: NavCo
                     }
                 )
 
-                AmountInputField(
+                EstablecerCantidad(
                     cantidad = uiState.cantidad.toString(),
                     onCantidadChange = { nuevaCantidad ->
                         mvvm.actualizarDatosTransaccion(
@@ -159,9 +160,9 @@ fun EditTransactionBodyScreen(paddingValues: PaddingValues, navController: NavCo
                     }
                 )
 
-                CategorySelector(
+                SelectorCategoria(
                     categorias = categorias,
-                    selectedCategory = uiState.categoria,
+                    categoriaSeleccionada = uiState.categoria,
                     onCategorySelected = { categoria ->
                         mvvm.actualizarDatosTransaccion(
                             uiState.cantidad.toString(),
@@ -173,7 +174,7 @@ fun EditTransactionBodyScreen(paddingValues: PaddingValues, navController: NavCo
                     tipo = uiState.tipo
                 )
 
-                DateSelector(
+                SeleccionarFecha(
                     selectedDate = seleccionarFecha,
                     onDateSelected = { nuevaFecha ->
                         seleccionarFecha = nuevaFecha
@@ -223,16 +224,14 @@ fun EditTransactionBodyScreen(paddingValues: PaddingValues, navController: NavCo
 }
 
 @Composable
-fun TransactionTypeSelection(
-    tipo: String,
-    onTipoChange: (String) -> Unit
-) {
+fun TransactionTypeSelection(tipo: String, onTipoChange: (String) -> Unit) {
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            "Tipo de Transacción",
+            "Tipo de transaccion",
             style = MaterialTheme.typography.bodyLarge,
             color = blanco,
             fontWeight = FontWeight.Medium
@@ -300,10 +299,8 @@ fun TransactionTypeSelection(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AmountInputField(
-    cantidad: String,
-    onCantidadChange: (String) -> Unit
-) {
+fun EstablecerCantidad(cantidad: String, onCantidadChange: (String) -> Unit) {
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -342,10 +339,8 @@ fun AmountInputField(
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun DateSelector(
-    selectedDate: LocalDate,
-    onDateSelected: (LocalDate) -> Unit
-) {
+fun SeleccionarFecha(selectedDate: LocalDate, onDateSelected: (LocalDate) -> Unit) {
+
     val context = LocalContext.current
 
     Column(
@@ -386,113 +381,6 @@ fun DateSelector(
                     selectedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
                     color = blanco
                 )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CategorySelector(
-    categorias: List<Categoria>,
-    selectedCategory: String,
-    onCategorySelected: (String) -> Unit,
-    tipo: String
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            "Categoría",
-            style = MaterialTheme.typography.bodyLarge,
-            color = blanco,
-            fontWeight = FontWeight.Medium
-        )
-
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            OutlinedTextField(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(),
-                readOnly = true,
-                value = selectedCategory.replaceFirstChar { it.uppercase() },
-                onValueChange = {},
-                leadingIcon = {
-                    Icon(
-                        imageVector = obtenerIconoCategoria(selectedCategory),
-                        contentDescription = "Icono categoría",
-                        tint = naranjaClaro
-                    )
-                },
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                },
-                textStyle = TextStyle(blanco),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = naranjaClaro,
-                    unfocusedBorderColor = naranjaClaro,
-                    focusedLabelColor = naranjaClaro,
-                    unfocusedLabelColor = naranjaClaro,
-                    cursorColor = naranjaClaro,
-                    containerColor = Color.Transparent
-                ),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(grisClaro, grisClaro)
-                        )
-                    )
-            ) {
-                categorias.forEach { categoria ->
-                    DropdownMenuItem(
-                        text = {
-                            Row(
-                                horizontalArrangement = Arrangement.Start,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = obtenerIconoCategoria(categoria.nombre),
-                                    contentDescription = "Icono ${categoria.nombre}",
-                                    tint = naranjaClaro,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = categoria.nombre.replaceFirstChar { it.uppercase() },
-                                    color = blanco
-                                )
-                            }
-                        },
-                        onClick = {
-                            onCategorySelected(categoria.nombre)
-                            expanded = false
-                        },
-                        colors = MenuDefaults.itemColors(
-                            textColor = blanco,
-                            leadingIconColor = naranjaClaro
-                        ),
-                        modifier = Modifier.background(
-                            if (categoria.nombre == selectedCategory) {
-                                naranjaClaro.copy(alpha = 0.1f)
-                            } else {
-                                Color.Transparent
-                            }
-                        )
-                    )
-                }
             }
         }
     }
