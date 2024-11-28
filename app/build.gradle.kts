@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.dam2jms.gestiongastosapp"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -70,17 +70,19 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     // Compose Material 3
-    implementation("androidx.compose.material3:material3:1.1.2")
+    implementation("androidx.compose.material:material:1.7.5")
 
     // Navegación entre pantallas con Jetpack Compose
     implementation("androidx.navigation:navigation-compose:2.7.4")
 
-    // Firebase BoM: gestionar versiones de Firebase
+    // Firebase BoM: gestionar versiones de Firebase (esto maneja las versiones de las dependencias de Firebase)
     implementation(platform("com.google.firebase:firebase-bom:31.2.3"))
 
-    // Firebase Auth y Firestore: sin versiones explícitas
+    // Firebase Auth y Firestore: sin versiones explícitas, se usa la versión del BoM de Firebase
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+    // Si no estás utilizando Firebase Storage explícitamente, no es necesario incluir esta dependencia.
+    // implementation("com.google.firebase:firebase-storage-ktx")
 
     // Para nuevos iconos en Compose
     implementation("androidx.compose.material:material-icons-extended")
@@ -96,13 +98,19 @@ dependencies {
     // Google Sign-In
     implementation("com.google.android.gms:play-services-auth:20.6.0")
 
+    // Para gráficos en Compose
     implementation("com.patrykandpatrick.vico:compose:1.6.5")
 
+    // Para gráficos en Android
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 
+    // Dependencias de Compose
     implementation("androidx.compose.ui:ui:1.7.5")
     implementation("androidx.compose.material:material:1.7.5")
     implementation("androidx.compose.runtime:runtime-livedata:1.7.5")
 
+    // Coil para imágenes en Compose
     implementation("io.coil-kt:coil-compose:2.4.0")
+
+    implementation("com.google.firebase:firebase-storage-ktx")
 }

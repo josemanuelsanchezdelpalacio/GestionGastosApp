@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,10 +24,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBackIos
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.TrendingDown
@@ -38,13 +45,16 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -59,10 +69,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -77,6 +89,8 @@ import com.dam2jms.gestiongastosapp.models.HomeViewModel
 import com.dam2jms.gestiongastosapp.models.MonedasViewModel
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
 import com.dam2jms.gestiongastosapp.states.Article
+import com.dam2jms.gestiongastosapp.states.CalendarView
+import com.dam2jms.gestiongastosapp.states.ReminderType
 import com.dam2jms.gestiongastosapp.states.TransactionUiState
 import com.dam2jms.gestiongastosapp.states.UiState
 import com.dam2jms.gestiongastosapp.ui.theme.azul
@@ -86,7 +100,9 @@ import com.dam2jms.gestiongastosapp.ui.theme.grisClaro
 import com.dam2jms.gestiongastosapp.ui.theme.naranjaClaro
 import com.dam2jms.gestiongastosapp.ui.theme.rojo
 import com.dam2jms.gestiongastosapp.ui.theme.verde
+import java.time.DateTimeException
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -284,13 +300,15 @@ fun balanceCard(uiState: UiState) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun metasCard(homeViewModel: HomeViewModel, context: Context) {
-
     val uiState by homeViewModel.uiState.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var fechaSeleccionada by remember { mutableStateOf<LocalDate?>(null) }
+    var showCalendarDialog by remember { mutableStateOf(false) }
+    var selectedView by remember { mutableStateOf(CalendarView.GOALS) }
 
     Card(
         modifier = Modifier
@@ -306,29 +324,27 @@ fun metasCard(homeViewModel: HomeViewModel, context: Context) {
                 .padding(20.dp)
                 .fillMaxWidth()
         ) {
+            // Existing financial goal content
             Text(
-                "Meta Financiera",
+                "Metas y Recordatorios",
                 color = blanco,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
             )
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Existing financial goal progress section
             if (uiState.objetivoFinanciero > 0 && uiState.fechaObjetivo != null) {
-
                 Text("Meta Total: ${uiState.monedaActual} ${String.format("%,.2f", uiState.objetivoFinanciero)}", color = verde, style = MaterialTheme.typography.bodyMedium)
                 Text("Días restantes: ${uiState.diasHastaMeta}", color = azul, style = MaterialTheme.typography.bodyMedium)
                 Text("Ahorro diario necesario: ${String.format("%.2f", uiState.ahorroDiarioNecesario)} ${uiState.monedaActual}", color = grisClaro, style = MaterialTheme.typography.bodySmall)
 
-                //calculo el progreso actual
+                // Progress bar (existing code)
                 val progresoActual = uiState.balanceTotal
                 val objetivoFinanciero = uiState.objetivoFinanciero
-
-                //calculo el porcentaje de progreso
                 val porcentajeProgreso = if (objetivoFinanciero > 0) {
                     (progresoActual / objetivoFinanciero * 100).coerceIn(0.0, 100.0)
                 } else { 0.0 }
 
-                //barra de progreso
                 LinearProgressIndicator(
                     progress = (porcentajeProgreso / 100).toFloat(),
                     modifier = Modifier.fillMaxWidth().height(8.dp),
@@ -344,28 +360,32 @@ fun metasCard(homeViewModel: HomeViewModel, context: Context) {
             }
 
             Spacer(modifier = Modifier.height(20.dp))
+
+            // Calendar and Buttons Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(onClick = { showDialog = true }, modifier = Modifier.weight(1f)) {
-                    Text(if (uiState.objetivoFinanciero > 0) "Modificar meta" else "Establecer Meta")
+                Button(
+                    onClick = {
+                        showCalendarDialog = true
+                        selectedView = CalendarView.GOALS
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Ver Calendario")
                 }
-                if (uiState.objetivoFinanciero > 0) {
-                    Button(
-                        onClick = {
-                            homeViewModel.eliminarMeta(context)
-                            fechaSeleccionada = null
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = rojo)
-                    ) {
-                        Text("Eliminar meta")
-                    }
+                Button(
+                    onClick = { showDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (uiState.objetivoFinanciero > 0) "Modificar meta" else "Establecer Meta")
                 }
             }
         }
     }
 
+    // Goal Setting Dialog (existing code)
     if (showDialog) {
         var cantidadObjetivo by remember { mutableStateOf("") }
         var mensajeError by remember { mutableStateOf("") }
@@ -418,6 +438,227 @@ fun metasCard(homeViewModel: HomeViewModel, context: Context) {
                 }
             }
         )
+    }
+
+    // Comprehensive Calendar Dialog
+    if (showCalendarDialog) {
+        val currentMonth by remember { mutableStateOf(LocalDate.now()) }
+        var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+        var reminderText by remember { mutableStateOf("") }
+        var reminderAmount by remember { mutableStateOf("") }
+        var reminderType by remember { mutableStateOf(ReminderType.PAYMENT) }
+
+        AlertDialog(
+            onDismissRequest = { showCalendarDialog = false },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Calendario de Metas y Pagos")
+                    Row {
+                        TextButton(onClick = { selectedView = CalendarView.GOALS }) {
+                            Text("Metas", color = if (selectedView == CalendarView.GOALS) verde else grisClaro)
+                        }
+                        TextButton(onClick = { selectedView = CalendarView.REMINDERS }) {
+                            Text("Recordatorios", color = if (selectedView == CalendarView.REMINDERS) verde else grisClaro)
+                        }
+                    }
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Calendar View
+                    CalendarComponent(
+                        currentMonth = currentMonth,
+                        onDateSelected = { date ->
+                            selectedDate = date
+                            // Reset inputs when a new date is selected
+                            reminderText = ""
+                            reminderAmount = ""
+                        }
+                    )
+
+                    // Conditional Content based on View
+                    when (selectedView) {
+                        CalendarView.GOALS -> {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Meta Financiera Actual", style = MaterialTheme.typography.bodyMedium)
+
+                            if (uiState.objetivoFinanciero > 0) {
+                                Text("Objetivo: ${uiState.monedaActual} ${String.format("%,.2f", uiState.objetivoFinanciero)}")
+                                Text("Fecha Límite: ${uiState.fechaObjetivo}")
+                                Text("Días Restantes: ${uiState.diasHastaMeta}")
+                            } else {
+                                Text("No hay meta establecida", color = grisClaro)
+                            }
+                        }
+                        CalendarView.REMINDERS -> {
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Reminder Input Section
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Reminder Type Selector
+                                ExposedDropdownMenuBox(
+                                    expanded = false,
+                                    onExpandedChange = {},
+                                    modifier = Modifier.width(120.dp)
+                                ) {
+                                    // Dropdown for Reminder Type
+                                    DropdownMenuItem(
+                                        text = { Text(reminderType.name) },
+                                        onClick = {
+                                            // Toggle between Payment and Goal
+                                            reminderType = when(reminderType) {
+                                                ReminderType.PAYMENT -> ReminderType.GOAL
+                                                ReminderType.GOAL -> ReminderType.PAYMENT
+                                            }
+                                        }
+                                    )
+                                }
+
+                                // Reminder Amount Input
+                                TextField(
+                                    value = reminderAmount,
+                                    onValueChange = { reminderAmount = it },
+                                    label = { Text("Monto") },
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                )
+                            }
+
+                            // Reminder Description Input
+                            TextField(
+                                value = reminderText,
+                                onValueChange = { reminderText = it },
+                                label = { Text("Descripción del Recordatorio") },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Logic to save reminder or goal
+                        when (selectedView) {
+                            CalendarView.GOALS -> {
+                                // Existing goal setting logic
+                                showCalendarDialog = false
+                            }
+                            CalendarView.REMINDERS -> {
+                                if (selectedDate != null && reminderText.isNotBlank()) {
+                                    // Save reminder logic
+                                    homeViewModel.agregarRecordatorio(
+                                        fecha = selectedDate!!,
+                                        descripcion = reminderText,
+                                        monto = reminderAmount.toDoubleOrNull() ?: 0.0,
+                                        tipo = reminderType
+                                    )
+                                    showCalendarDialog = false
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text(when(selectedView) {
+                        CalendarView.GOALS -> "Aceptar"
+                        CalendarView.REMINDERS -> "Guardar Recordatorio"
+                    })
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showCalendarDialog = false }
+                ) { Text("Cancelar") }
+            }
+        )
+    }
+}
+
+@Composable
+fun CalendarComponent(
+    currentMonth: LocalDate,
+    onDateSelected: (LocalDate) -> Unit
+) {
+    // Simplified calendar component
+    // In a real implementation, you'd use a more robust calendar library
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Month Navigation
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { /* Navigate to previous month */ }) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Previous Month")
+            }
+            Text(
+                text = currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
+                style = MaterialTheme.typography.bodyLarge
+            )
+            IconButton(onClick = { /* Navigate to next month */ }) {
+                Icon(Icons.Default.ArrowForward, contentDescription = "Next Month")
+            }
+        }
+
+        // Weekday Headers
+        Row(modifier = Modifier.fillMaxWidth()) {
+            val weekdays = listOf("L", "M", "M", "J", "V", "S", "D")
+            weekdays.forEach { day ->
+                Text(
+                    text = day,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(4.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        // Calendar Days (simplified)
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(7),
+            modifier = Modifier.height(200.dp)
+        ) {
+            items(42) { index -> // 6 weeks
+                val dayOfMonth = index - currentMonth.dayOfWeek.ordinal + 1
+                val date = try {
+                    currentMonth.withDayOfMonth(dayOfMonth)
+                } catch (e: DateTimeException) {
+                    null
+                }
+
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .clickable(enabled = date != null) {
+                            date?.let { onDateSelected(it) }
+                        }
+                        .background(
+                            color = if (date?.isEqual(LocalDate.now()) == true)
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                            else Color.Transparent
+                        )
+                ) {
+                    if (date != null) {
+                        Text(
+                            text = dayOfMonth.toString(),
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(4.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

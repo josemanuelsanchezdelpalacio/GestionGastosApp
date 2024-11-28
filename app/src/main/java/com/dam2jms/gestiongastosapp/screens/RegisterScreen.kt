@@ -1,242 +1,348 @@
 package com.dam2jms.gestiongastosapp.screens
 
-import android.content.Context
 import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBackIosNew
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.dam2jms.gestiongastosapp.R
-import com.dam2jms.gestiongastosapp.models.AuxViewModel
 import com.dam2jms.gestiongastosapp.models.RegisterViewModel
 import com.dam2jms.gestiongastosapp.navigation.AppScreen
-import com.dam2jms.gestiongastosapp.states.UiState
-import com.dam2jms.gestiongastosapp.ui.theme.blanco
-import com.dam2jms.gestiongastosapp.ui.theme.colorFondo
-import com.dam2jms.gestiongastosapp.ui.theme.grisClaro
-import com.dam2jms.gestiongastosapp.ui.theme.naranjaClaro
-import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.dam2jms.gestiongastosapp.ui.theme.*
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.launch
 
-@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegisterScreen(
-    navController: NavController,
-    auxViewModel: AuxViewModel,
-    registerViewModel: RegisterViewModel,
-    auth: FirebaseAuth,
-    googleSignInClient: GoogleSignInClient
-) {
+fun RegisterScreen(navController: NavController, registerViewModel: RegisterViewModel, googleSignInClient: GoogleSignInClient) {
 
+    var isLoading by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val uiState by auxViewModel.uiState.collectAsState()
+    val scrollState = rememberScrollState()
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        registerViewModel.handleGoogleSignUpResult(
+            result = result,
+            onSuccess = {
+                navController.navigate(AppScreen.HomeScreen.route) {
+                    popUpTo(AppScreen.RegisterScreen.route) { inclusive = true }
+                }
+            },
+            onFailure = { errorMessage ->
+                registerViewModel.uiState.value.copy(error = errorMessage)
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(text = "REGISTRO", fontWeight = FontWeight.Bold, color = blanco) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(imageVector = Icons.Filled.ArrowBackIosNew, contentDescription = "atras", tint = blanco)
-                    }
+                title = {
+                    Text(
+                        "Crear Cuenta",
+                        color = blanco,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colorFondo)
-            )
-        },
-        containerColor = colorFondo
-    ) { paddingValues ->
-        RegisterScreenBody(
-            paddingValues = paddingValues,
-            navController = navController,
-            auxViewModel = auxViewModel,
-            registerViewModel = registerViewModel,
-            uiState = uiState,
-            context = context,
-            auth = auth,
-            googleSignInClient = googleSignInClient
-        )
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun RegisterScreenBody(
-    paddingValues: PaddingValues,
-    navController: NavController,
-    auxViewModel: AuxViewModel,
-    registerViewModel: RegisterViewModel,
-    uiState: UiState,
-    context: Context,
-    auth: FirebaseAuth,
-    googleSignInClient: GoogleSignInClient
-) {
-
-    val scope = rememberCoroutineScope()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)
-            .padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(150.dp)
-                .clip(CircleShape)
-                .border(BorderStroke(4.dp, blanco), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.imagen_logo),
-                contentDescription = "imagen_logo",
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = colorFondo
+                ),
+                modifier = Modifier.shadow(4.dp)
             )
         }
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        OutlinedTextField(
-            value = uiState.email,
-            onValueChange = { auxViewModel.onChange(it, uiState.password) },
-            label = { Text(text = "Correo electronico", color = blanco) },
-            singleLine = true,
-            leadingIcon = {
-                Icon(imageVector = Icons.Filled.Email, contentDescription = "Correo electronico", tint = naranjaClaro)
-            },
-            textStyle = TextStyle(color = blanco),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = naranjaClaro,
-                unfocusedBorderColor = grisClaro,
-                focusedLabelColor = naranjaClaro,
-            ),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth().height(56.dp)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = uiState.password,
-            onValueChange = { auxViewModel.onChange(uiState.email, it) },
-            label = { Text(text = "Contraseña", color = blanco) },
-            singleLine = true,
-            textStyle = TextStyle(color = blanco),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = naranjaClaro,
-                unfocusedBorderColor = grisClaro,
-                focusedLabelColor = naranjaClaro,
-            ),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+    ) { paddingValues ->
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            leadingIcon = {
-                Icon(imageVector = Icons.Filled.Lock, contentDescription = "Contraseña", tint = naranjaClaro)
-            },
-            visualTransformation = if (uiState.visibilidadPasssword) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { auxViewModel.visibilidadPassword() }) {
-                    Icon(
-                        imageVector = if (uiState.visibilidadPasssword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = if (uiState.visibilidadPasssword) "Mostrar contraseña" else "Ocultar contraseña",
-                        tint = naranjaClaro
+                .fillMaxSize()
+                .background(colorFondo)
+                .padding(paddingValues)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .verticalScroll(scrollState),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // App Logo
+                Surface(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape),
+                    color = naranjaClaro
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.imagen_logo),
+                            contentDescription = "App Logo",
+                            modifier = Modifier.size(80.dp),
+                            tint = Color.Unspecified
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                RegisterForm(
+                    registerViewModel = registerViewModel,
+                    onRegisterSuccess = {
+                        navController.navigate(AppScreen.HomeScreen.route) {
+                            popUpTo(AppScreen.RegisterScreen.route) { inclusive = true }
+                        }
+                    },
+                    isLoading = isLoading,
+                    onLoadingChange = { isLoading = it }
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Google Sign Up Button
+                Button(
+                    onClick = {
+                        val signInIntent = googleSignInClient.signInIntent
+                        launcher.launch(signInIntent)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = blanco,
+                        contentColor = Color.Black
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 8.dp
+                    )
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.icono_google),
+                            contentDescription = "Google Icon",
+                            modifier = Modifier.size(24.dp),
+                            tint = Color.Unspecified
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            "Continuar con Google",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.Black
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                TextButton(
+                    onClick = { navController.navigate(AppScreen.LoginScreen.route) }
+                ) {
+                    Text(
+                        "¿Ya tienes una cuenta? Iniciar sesión",
+                        color = naranjaClaro,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = {
-                scope.launch {
-                    registerViewModel.registrarUsuarioConCorreo(uiState.email, uiState.password, auth, context, navController)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(25.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = naranjaClaro)
-        ) {
-            Text(text = "Registrarse", color = blanco, fontWeight = FontWeight.Bold)
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        val seleccionarCuentaLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.StartActivityForResult()
-        ) { resultado ->
-            val task = GoogleSignIn.getSignedInAccountFromIntent(resultado.data)
-            try {
-                val cuenta = task.getResult(ApiException::class.java)
-                if (cuenta != null) {
-                    scope.launch { registerViewModel.registrarUsuarioConGoogle(uiState.email, uiState.password, cuenta, context, navController) }
-                }
-            } catch (e: ApiException) {
-                Toast.makeText(context, "Error al registrarse con Google: ${e.message}", Toast.LENGTH_SHORT).show()
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(colorFondo.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = naranjaClaro)
             }
-        }
-
-        Button(
-            onClick = {
-                googleSignInClient.signOut().addOnCompleteListener {
-                    val registrarCuenta = googleSignInClient.signInIntent
-                    seleccionarCuentaLauncher.launch(registrarCuenta)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(25.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = naranjaClaro)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(painterResource(id = R.drawable.icono_google), contentDescription = "icono google", tint = blanco)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Registrar sesión con Google", color = blanco, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TextButton(onClick = { navController.navigate(AppScreen.LoginScreen.route) }) {
-            Text(text = "¿Ya tienes cuenta? Inicia sesión", color = naranjaClaro)
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RegisterForm(
+    registerViewModel: RegisterViewModel,
+    onRegisterSuccess: () -> Unit,
+    isLoading: Boolean,
+    onLoadingChange: (Boolean) -> Unit
+) {
+    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    val uiState by registerViewModel.uiState.collectAsState()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Nombre de usuario", color = grisClaro) },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = null,
+                    tint = naranjaClaro
+                )
+            },
+            singleLine = true,
+            isError = username.isBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading,
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                cursorColor = naranjaClaro,
+                focusedBorderColor = naranjaClaro,
+                unfocusedBorderColor = grisClaro,
+                focusedLabelColor = naranjaClaro,
+                unfocusedLabelColor = grisClaro
+            ),
+            textStyle = TextStyle(color = blanco)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email", color = grisClaro) },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Email,
+                    contentDescription = null,
+                    tint = naranjaClaro
+                )
+            },
+            singleLine = true,
+            isError = email.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches(),
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading,
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                cursorColor = naranjaClaro,
+                focusedBorderColor = naranjaClaro,
+                unfocusedBorderColor = grisClaro,
+                focusedLabelColor = naranjaClaro,
+                unfocusedLabelColor = grisClaro
+            ),
+            textStyle = TextStyle(color = blanco)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Contraseña", color = grisClaro) },
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = naranjaClaro
+                )
+            },
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = if (passwordVisible) "Ocultar Contraseña" else "Mostrar Contraseña",
+                        tint = if (passwordVisible) naranjaClaro else grisClaro
+                    )
+                }
+            },
+            singleLine = true,
+            isError = password.isNotBlank() && password.length < 6,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading,
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                cursorColor = naranjaClaro,
+                focusedBorderColor = naranjaClaro,
+                unfocusedBorderColor = grisClaro,
+                focusedLabelColor = naranjaClaro,
+                unfocusedLabelColor = grisClaro
+            ),
+            textStyle = TextStyle(color = blanco)
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = {
+                onLoadingChange(true)
+                registerViewModel.registerWithEmail(email, password, username)
+                if (uiState.error == null) {
+                    onRegisterSuccess()
+                }
+                onLoadingChange(false)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            enabled = email.isNotBlank() && password.isNotBlank() && username.isNotBlank() && !isLoading,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = naranjaClaro,
+                contentColor = Color.Black,
+                disabledContainerColor = grisClaro
+            ),
+            shape = RoundedCornerShape(16.dp),
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 4.dp,
+                pressedElevation = 8.dp
+            )
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color.Black
+                )
+            } else {
+                Text(
+                    "Registrarse",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+        }
+
+        // Error Message
+        AnimatedVisibility(visible = uiState.error != null) {
+            Text(
+                text = uiState.error ?: "",
+                color = rojo,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}

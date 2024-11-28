@@ -8,10 +8,12 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dam2jms.gestiongastosapp.data.NewsApiService
+import com.dam2jms.gestiongastosapp.states.ReminderType
 import com.dam2jms.gestiongastosapp.states.UiState
 import com.dam2jms.gestiongastosapp.utils.FireStoreUtil
 import com.google.firebase.auth.ktx.BuildConfig
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
@@ -369,6 +371,37 @@ class HomeViewModel : ViewModel() {
                 )
             }
         }
+    }
+
+    // Extension to HomeViewModel to handle reminders
+    fun agregarRecordatorio(
+        fecha: LocalDate,
+        descripcion: String,
+        monto: Double,
+        tipo: ReminderType
+    ) {
+        // Implement logic to save reminder to Firebase or local storage
+        val userId = Firebase.auth.currentUser?.uid ?: return
+
+        val recordatorio = hashMapOf(
+            "fecha" to fecha.toString(),
+            "descripcion" to descripcion,
+            "monto" to monto,
+            "tipo" to tipo.name,
+            "usuarioId" to userId,
+            "timestamp" to FieldValue.serverTimestamp()
+        )
+
+        Firebase.firestore.collection("recordatorios")
+            .add(recordatorio)
+            .addOnSuccessListener { documentReference ->
+                // Optional: Handle successful addition of reminder
+                Log.d("AgregarRecordatorio", "Recordatorio añadido con ID: ${documentReference.id}")
+            }
+            .addOnFailureListener { e ->
+                // Optional: Handle failure in adding reminder
+                Log.e("AgregarRecordatorio", "Error al añadir recordatorio", e)
+            }
     }
 }
 

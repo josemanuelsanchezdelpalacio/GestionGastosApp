@@ -14,6 +14,7 @@ data class UiState(
     val email: String = "",
     val password: String = "",
     val visibilidadPasssword: Boolean = false,
+    val error: String = "",
 
     //balance general (homescreen)
     val balanceTotal: Double = 0.0,
@@ -83,4 +84,12 @@ data class UiState(
 
 )
 
+// Enums and Supporting Types
+enum class CalendarView {
+    GOALS, REMINDERS
+}
+
+enum class ReminderType {
+    PAYMENT, GOAL
+}
 

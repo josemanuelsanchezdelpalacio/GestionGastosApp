@@ -1,5 +1,6 @@
 package com.dam2jms.gestiongastosapp.navigation
 
+import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
@@ -30,6 +31,7 @@ import com.dam2jms.gestiongastosapp.screens.RegisterScreen
 import com.dam2jms.gestiongastosapp.screens.LoginScreen
 import com.dam2jms.gestiongastosapp.screens.TransactionScreen
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import java.time.LocalDate
@@ -42,30 +44,23 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
 
-    val idFireBaseAuthUsuario = "484530452726-0qsqchbvv2idp9vln7kfgebmf1gr1vhg.apps.googleusercontent.com"
-    val googleSignInOptions = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(idFireBaseAuthUsuario)
-        .requestEmail()
-        .build()
-    val googleSignInClient = GoogleSignIn.getClient(context, googleSignInOptions)
+    val googleSignInClient = setupGoogleSignIn(context)
+    // Forzar el cierre de sesión al inicio para asegurar que se muestre el selector
+    googleSignInClient.signOut()
 
     NavHost(navController = navController, startDestination = AppScreen.LoginScreen.route) {
 
         composable(AppScreen.RegisterScreen.route) {
             RegisterScreen(
                 navController = navController,
-                auxViewModel = AuxViewModel(),
                 registerViewModel = RegisterViewModel(),
-                auth = FirebaseAuth.getInstance(),
                 googleSignInClient = googleSignInClient
             )
         }
         composable(AppScreen.LoginScreen.route) {
             LoginScreen(
                 navController = navController,
-                auxViewModel = AuxViewModel(),
                 loginViewModel = LoginViewModel(),
-                auth = FirebaseAuth.getInstance(),
                 googleSignInClient = googleSignInClient
             )
         }
@@ -121,3 +116,12 @@ fun AppNavigation() {
     }
 }
 
+
+private fun setupGoogleSignIn(context: Context): GoogleSignInClient {
+    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        .requestIdToken("484530452726-0qsqchbvv2idp9vln7kfgebmf1gr1vhg.apps.googleusercontent.com")
+        .requestEmail()
+        .build()
+
+    return GoogleSignIn.getClient(context, gso)
+}

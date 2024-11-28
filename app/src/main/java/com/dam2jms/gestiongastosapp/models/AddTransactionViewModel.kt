@@ -22,47 +22,50 @@ import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.O)
 class AddTransactionViewModel : ViewModel() {
-
-    //para controlar el estado de la UI
+    // Estado de la UI para transacciones
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    /** metodo para actualizar los datos de la transaccion en el UI*/
+    // Método para actualizar datos de transacción
     fun actualizarDatosTransaccion(cantidad: String?, categoria: String?, tipo: String) {
-
-        //actualizo la UI con los datos nuevos
-        _uiState.update {
-            it.copy(
-                cantidad = cantidad?.toDoubleOrNull() ?: uiState.value.cantidad,
-                categoria = categoria ?: uiState.value.categoria,
-                tipo = tipo
-            )
+        val cantidadDouble = cantidad?.toDoubleOrNull()
+        if (cantidadDouble != null && cantidadDouble > 0) {
+            _uiState.update {
+                it.copy(
+                    cantidad = cantidadDouble,
+                    categoria = categoria ?: it.categoria,
+                    tipo = tipo
+                )
+            }
         }
     }
 
-    /**metodo para crear una transaccion en firestore y actualizo la UI*/
+    // Método para añadir transacción
     fun añadirTransaccion(context: Context, seleccionarFecha: LocalDate, onNavigate: (String) -> Unit) {
+        val cantidad = uiState.value.cantidad
+        val categoria = uiState.value.categoria
+        val tipo = uiState.value.tipo
 
-        if (uiState.value.cantidad > 0 && uiState.value.categoria.isNotEmpty() && uiState.value.tipo.isNotEmpty()) {
+        if (cantidad > 0 && categoria.isNotEmpty() && tipo.isNotEmpty()) {
+
             val transaccion = TransactionUiState(
-                cantidad = uiState.value.cantidad,
-                categoria = uiState.value.categoria,
-                tipo = uiState.value.tipo,
+                cantidad = cantidad,
+                categoria = categoria,
+                tipo = tipo,
                 fecha = seleccionarFecha.format(DateTimeFormatter.ISO_DATE)
             )
 
-            //nombre de la coleccion
-            val nombreColeccion = if (transaccion.tipo == "ingreso") "ingresos" else "gastos"
-
+            // Guardar en Firestore
+            val nombreColeccion = if (tipo == "ingreso") "ingresos" else "gastos"
             viewModelScope.launch(Dispatchers.IO) {
                 FireStoreUtil.añadirTransaccion(
                     coleccion = nombreColeccion,
                     transaccion = transaccion,
                     onSuccess = {
-                        Toast.makeText(context, "${transaccion.tipo.capitalize()} agregado correctamente", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "${tipo.capitalize()} agregado correctamente", Toast.LENGTH_SHORT).show()
                     },
                     onFailure = { exception ->
-                        Toast.makeText(context, "Error al agregar el ${transaccion.tipo}: ${exception.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Error al agregar el ${tipo}: ${exception.message}", Toast.LENGTH_SHORT).show()
                     }
                 )
             }
@@ -70,7 +73,4 @@ class AddTransactionViewModel : ViewModel() {
             Toast.makeText(context, "Completa todos los campos", Toast.LENGTH_SHORT).show()
         }
     }
-
 }
-
-

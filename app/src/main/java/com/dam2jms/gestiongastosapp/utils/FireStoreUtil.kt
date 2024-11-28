@@ -8,15 +8,9 @@ import com.google.firebase.ktx.Firebase
 object FireStoreUtil {
     private val db = FirebaseFirestore.getInstance()
 
-    /**
-     * Obtiene todas las transacciones de Firestore para el usuario actual.
-     *
-     * @param onSuccess Función a ejecutar en caso de éxito con la lista de transacciones.
-     * @param onFailure Función a ejecutar en caso de error.
-     */
+    // Método para obtener transacciones
     fun obtenerTransacciones(onSuccess: (List<TransactionUiState>) -> Unit, onFailure: (Exception) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid ?: return
-
         db.collection("users")
             .document(userId)
             .collection("ingresos")
@@ -42,22 +36,15 @@ object FireStoreUtil {
             .addOnFailureListener { onFailure(it) }
     }
 
-    /**
-     * Agrega una nueva transacción a Firestore.
-     *
-     * @param transaccion La transacción a agregar.
-     * @param onSuccess Función a ejecutar en caso de éxito.
-     * @param onFailure Función a ejecutar en caso de error.
-     */
+    // Método para añadir una transacción
     fun añadirTransaccion(coleccion: String, transaccion: TransactionUiState, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid ?: return
-
         db.collection("users")
             .document(userId)
             .collection(coleccion)
             .add(transaccion)
             .addOnSuccessListener { documentReference ->
-                // Asignar el ID del documento al objeto Transaccion
+                // Asignar el ID del documento al objeto Transacción
                 documentReference.update("id", documentReference.id)
                     .addOnSuccessListener { onSuccess() }
                     .addOnFailureListener { onFailure(it) }
@@ -65,16 +52,9 @@ object FireStoreUtil {
             .addOnFailureListener { onFailure(it) }
     }
 
-    /**
-     * metodo para eliminar una transaccion especifica de Firestore.
-     * @param collection Colección de la transacción ("ingresos" o "gastos")
-     * @param transaccionId ID de la transacción a eliminar
-     * @param onSuccess Función a ejecutar en caso de éxito
-     * @param onFailure Función a ejecutar en caso de error
-     */
+    // Método para eliminar una transacción
     fun eliminarTransaccion(coleccion: String, transaccionId: String, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid ?: return
-
         db.collection("users")
             .document(userId)
             .collection(coleccion)
@@ -84,14 +64,13 @@ object FireStoreUtil {
             .addOnFailureListener { onFailure(it) }
     }
 
+    // Método para editar una transacción
     fun editarTransaccion(coleccion: String, transaccion: TransactionUiState, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
         val userId = Firebase.auth.currentUser?.uid ?: return
-
         if (transaccion.id.isEmpty()) {
             onFailure(Exception("El ID de la transacción no puede estar vacío."))
             return
         }
-
         db.collection("users")
             .document(userId)
             .collection(coleccion)
@@ -104,19 +83,6 @@ object FireStoreUtil {
                 onFailure(exception)
             }
     }
-
-    fun eliminarTransaccion(tipo: String, transaccionId: String, userId: String, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
-        val transactionRef = FirebaseFirestore.getInstance()
-            .collection("users")
-            .document(userId)
-            .collection(tipo)
-            .document(transaccionId)
-
-        transactionRef.delete()
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { exception -> onFailure(exception) }
-    }
-
 
     fun eliminarMetaFinanciera(
         idUsuario: String,

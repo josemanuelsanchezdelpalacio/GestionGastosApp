@@ -110,4 +110,3 @@ private fun Seccion(icono: ImageVector, label: String, seleccionado: Boolean, on
 }
 
 
-
